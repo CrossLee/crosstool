@@ -4,9 +4,9 @@
 
 ## 下载
 
-- [下载正式安装包（推荐）](https://github.com/CrossLee/crosstool/releases/download/v0.1.0/crosstool-0.1.0-macos-universal2.pkg)
-- [下载 ZIP 版本](https://github.com/CrossLee/crosstool/releases/download/v0.1.0/crosstool-0.1.0-macos-universal2.zip)
-- [查看 v0.1.0 发布说明与校验文件](https://github.com/CrossLee/crosstool/releases/tag/v0.1.0)
+- [下载正式安装包（推荐）](https://github.com/CrossLee/crosstool/releases/download/v0.1.1/crosstool-0.1.1-macos-universal2.pkg)
+- [下载 ZIP 版本](https://github.com/CrossLee/crosstool/releases/download/v0.1.1/crosstool-0.1.1-macos-universal2.zip)
+- [查看 v0.1.1 发布说明与校验文件](https://github.com/CrossLee/crosstool/releases/tag/v0.1.1)
 
 系统要求：macOS 14 或更高版本。正式版同时支持 Apple Silicon 与 Intel Mac，不需要 Rosetta。
 
@@ -15,9 +15,9 @@
 ## 安装
 
 1. 下载 `.pkg` 文件并双击。
-2. 按安装器提示安装到“应用程序”。
+2. 按安装器提示安装；v0.1.1 会固定安装到 `/Applications/crosstool.app`。
 3. 打开 `crosstool`。
-4. 首次截图时，在“系统设置 → 隐私与安全性 → 屏幕与系统音频录制”中允许 `crosstool`，然后完全退出并重新打开 App。
+4. 首次截图会申请一次屏幕录制权限；若系统没有弹窗，按 App 提示打开“录屏与系统录音”。列表没有 crosstool 时点“+”选择 `/Applications/crosstool.app`，开启后完全退出并重新打开 App。
 
 安装包使用 Developer ID 签名，已通过 Apple 公证并装订公证票据。Release 同时提供 `SHA256SUMS.txt`，可用于校验下载完整性。
 
