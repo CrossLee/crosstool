@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#f7f6f2">
+    <meta name="color-scheme" content="light">
+    <meta name="description" content="通过 Crosio 在当前局域网中共享课堂文件和文字。">
+    <title>Crosio · 课堂共享区</title>
+    <link rel="stylesheet" href="/assets/app.css">
+    <script src="/assets/app.js" defer></script>
+  </head>
+  <body>
+    <div class="page-shell" id="top">
+      <header class="site-header" aria-label="页面导航">
+        <a class="brand" href="#top" aria-label="课堂共享区首页">
+          <span class="brand-mark" aria-hidden="true"><span>↗</span></span>
+          <span class="brand-copy">
+            <span class="brand-name">课堂共享</span>
+            <span class="brand-product">Crosio</span>
+          </span>
+        </a>
+        <div class="header-status">
+          <span class="connection-status" id="connection-status"><span class="live-dot" aria-hidden="true"></span><span id="connection-label">已连接</span></span>
+          <span class="security-pill" title="链接带有临时访问码"><span aria-hidden="true">◇</span> 访问码保护</span>
+        </div>
+      </header>
+
+      <main>
+        <section class="page-intro" aria-labelledby="page-title">
+          <div>
+            <p class="eyebrow">无需安装 · 无需登录</p>
+            <h1 id="page-title">课堂资料，大家一起共享。</h1>
+            <p class="hero-description">老师和同学上传的文件、图片与文字会立即出现在课堂共享区，所有打开此链接的人都能查看和下载。</p>
+          </div>
+          <div class="privacy-note" aria-label="隐私说明">
+            <span class="privacy-icon" aria-hidden="true">⌂</span>
+            <div>
+              <strong>本地传输</strong>
+              <span>内容不经过云端</span>
+            </div>
+          </div>
+        </section>
+
+        <div class="status-banner" id="session-alert" role="alert" hidden>
+          <span class="status-symbol" aria-hidden="true">!</span>
+          <span id="session-alert-text"></span>
+        </div>
+
+        <div class="workspace-grid">
+          <section class="panel shared-panel" aria-labelledby="shared-title">
+            <div class="panel-heading shared-heading">
+              <div class="panel-title-block">
+                <div class="title-row">
+                  <h2 id="shared-title">课堂共享区</h2>
+                  <span class="count-badge" id="item-count" aria-label="共享内容数量">—</span>
+                </div>
+                <p class="panel-description">老师和同学上传的文件与文字，会立即显示给所有打开此链接的人。</p>
+              </div>
+              <div class="panel-actions">
+                <button class="quiet-button refresh-button icon-button" id="refresh-button" type="button" aria-label="刷新共享内容" title="刷新共享内容">
+                  <span class="refresh-icon" aria-hidden="true">↻</span>
+                </button>
+                <button class="primary-button download-all-button" id="download-all-button" type="button" disabled>
+                  <span>全部下载</span>
+                  <span aria-hidden="true">↓</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="loading-list" id="loading-list" aria-label="正在加载共享内容" aria-live="polite">
+              <div class="skeleton-row"><span></span><span></span></div>
+              <div class="skeleton-row"><span></span><span></span></div>
+              <div class="skeleton-row"><span></span><span></span></div>
+            </div>
+
+            <div class="item-list" id="item-list" role="list" aria-live="polite"></div>
+
+            <div class="empty-state" id="empty-state" hidden>
+              <div class="empty-illustration" aria-hidden="true">
+                <span></span><span></span><span></span>
+              </div>
+              <h3 id="empty-title">还没有共享内容</h3>
+              <p id="empty-description">老师或同学上传文件、发送文字后，会立即出现在这里。</p>
+            </div>
+
+            <p class="last-updated" id="last-updated" aria-live="polite"></p>
+          </section>
+
+          <aside class="send-column" aria-label="上传内容到课堂共享区">
+            <section class="panel send-panel" aria-labelledby="send-title">
+              <div class="panel-heading send-heading">
+                <div class="title-row">
+                  <h2 id="send-title">上传到共享区</h2>
+                </div>
+              </div>
+
+              <div class="send-section upload-section" aria-labelledby="upload-title">
+                <div class="subsection-heading">
+                  <h3 id="upload-title">上传文件到共享区</h3>
+                  <span class="limit-label">单个不超过 256 MB</span>
+                </div>
+
+                <input id="file-input" class="visually-hidden" type="file" multiple aria-describedby="upload-hint">
+                <div class="drop-zone" id="drop-zone" role="button" tabindex="0" aria-controls="file-input" aria-label="选择文件上传到课堂共享区">
+                  <div class="drop-icon" aria-hidden="true"><span>↑</span></div>
+                  <strong>拖文件到这里，共享给全班</strong>
+                  <p id="upload-hint">或<span class="inline-action">选择文件</span>，可一次选择多个</p>
+                </div>
+
+                <div class="upload-queue" id="upload-queue" aria-live="polite" hidden>
+                  <div class="queue-heading">
+                    <span>传输记录</span>
+                    <span id="queue-summary"></span>
+                  </div>
+                  <div id="queue-list"></div>
+                </div>
+              </div>
+
+              <div class="send-section text-section" aria-labelledby="text-title">
+                <div class="subsection-heading">
+                  <h3 id="text-title">分享文字或链接</h3>
+                  <span class="shortcut-hint">⌘ Enter 发送</span>
+                </div>
+
+                <form id="text-form">
+                  <label class="visually-hidden" for="text-input">要发送的文字或链接</label>
+                  <textarea id="text-input" rows="5" placeholder="写一段文字，或粘贴一个链接…" spellcheck="true"></textarea>
+                  <div class="text-form-footer">
+                    <span class="text-count" id="text-count">0 B</span>
+                    <button class="primary-button" id="send-text-button" type="submit" disabled>
+                      <span class="send-button-label">发送</span>
+                      <span class="button-arrow" aria-hidden="true">→</span>
+                    </button>
+                  </div>
+                  <p class="inline-status" id="text-status" role="status" aria-live="polite"></p>
+                </form>
+              </div>
+            </section>
+          </aside>
+        </div>
+      </main>
+
+      <footer class="site-footer">
+        <p><span aria-hidden="true">◉</span> 内容仅在当前局域网内传输，不会上传到云端</p>
+        <p>由 Crosio 提供</p>
+      </footer>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+  </body>
+</html>

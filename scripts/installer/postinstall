@@ -1,0 +1,64 @@
+#!/bin/sh
+
+set -eu
+
+EXPECTED_BUNDLE_ID="com.cross.crosstool"
+EXPECTED_TEAM_ID="8LSY655LKD"
+TARGET_ROOT="${3:-/}"
+
+if [ "$TARGET_ROOT" = "/" ]; then
+    APPLICATIONS_DIR="/Applications"
+else
+    APPLICATIONS_DIR="$TARGET_ROOT/Applications"
+fi
+
+NEW_APP="$APPLICATIONS_DIR/Crosio.app"
+LEGACY_APP="$APPLICATIONS_DIR/crosstool.app"
+
+NEW_BUNDLE_ID="$(/usr/bin/plutil -extract CFBundleIdentifier raw -o - "$NEW_APP/Contents/Info.plist" 2>/dev/null || true)"
+if [ "$NEW_BUNDLE_ID" != "$EXPECTED_BUNDLE_ID" ]; then
+    echo "Crosio installer could not verify the newly installed app" >&2
+    exit 1
+fi
+
+if ! /usr/bin/codesign --verify --deep --strict "$NEW_APP" >/dev/null 2>&1; then
+    echo "Crosio installer found an invalid signature on the newly installed app" >&2
+    exit 1
+fi
+
+NEW_TEAM_ID="$(/usr/bin/codesign --display --verbose=4 "$NEW_APP" 2>&1 | /usr/bin/awk -F= '/^TeamIdentifier=/{print $2; exit}')"
+if [ "$NEW_TEAM_ID" != "$EXPECTED_TEAM_ID" ]; then
+    echo "Crosio installer found an unexpected developer team on the newly installed app" >&2
+    exit 1
+fi
+
+if [ ! -e "$LEGACY_APP" ]; then
+    exit 0
+fi
+
+if [ -L "$LEGACY_APP" ]; then
+    echo "Crosio installer will not remove a symbolic link at $LEGACY_APP" >&2
+    exit 1
+fi
+
+LEGACY_BUNDLE_ID="$(/usr/bin/plutil -extract CFBundleIdentifier raw -o - "$LEGACY_APP/Contents/Info.plist" 2>/dev/null || true)"
+if ! /usr/bin/codesign --verify --deep --strict "$LEGACY_APP" >/dev/null 2>&1; then
+    echo "Crosio installer will not remove an invalidly signed legacy app" >&2
+    exit 1
+fi
+LEGACY_TEAM_ID="$(/usr/bin/codesign --display --verbose=4 "$LEGACY_APP" 2>&1 | /usr/bin/awk -F= '/^TeamIdentifier=/{print $2; exit}')"
+if [ "$LEGACY_BUNDLE_ID" != "$EXPECTED_BUNDLE_ID" ] || [ "$LEGACY_TEAM_ID" != "$EXPECTED_TEAM_ID" ]; then
+    echo "Crosio installer will not remove an unrelated legacy app" >&2
+    exit 1
+fi
+
+LEGACY_EXECUTABLE="$LEGACY_APP/Contents/MacOS/CrossToolApp"
+if /usr/bin/pgrep -f "^${LEGACY_EXECUTABLE}([[:space:]]|$)" >/dev/null 2>&1; then
+    echo "Please quit the legacy crosstool app before completing this update" >&2
+    exit 1
+fi
+
+/bin/rm -rf -- "$LEGACY_APP"
+echo "Removed verified legacy app: $LEGACY_APP"
+
+exit 0

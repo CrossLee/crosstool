@@ -1,0 +1,25 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Crosio 长截图验收页</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: #f4f6fb; font-family: -apple-system, sans-serif; }
+  main { width: 760px; margin: 24px auto 80px; }
+  article { background: white; border: 1px solid #d9deea; border-radius: 18px; overflow: hidden; }
+  section { height: 260px; padding: 28px 34px; border-bottom: 2px solid #182033; color: #182033; }
+  section:nth-child(4n+1) { background: #e5edff; }
+  section:nth-child(4n+2) { background: #e2f7ed; }
+  section:nth-child(4n+3) { background: #fff0d8; }
+  section:nth-child(4n) { background: #f2e8ff; }
+  h1 { margin: 0 0 10px; font-size: 42px; }
+  p { margin: 0; font-size: 18px; line-height: 1.6; }
+</style>
+<main><article id="content"></article></main>
+<script>
+  const content = document.querySelector('#content');
+  for (let index = 1; index <= 32; index += 1) {
+    const section = document.createElement('section');
+    section.innerHTML = `<h1>第 ${String(index).padStart(2, '0')} 段</h1><p>这是用于验证连续滚动采集、重叠匹配与最终尾帧的固定内容。编号必须连续，不能缺段，也不能重复。</p>`;
+    content.append(section);
+  }
+</script>

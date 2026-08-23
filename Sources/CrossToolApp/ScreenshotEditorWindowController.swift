@@ -1,0 +1,217 @@
+import AppKit
+import SwiftUI
+
+enum ScreenshotEditorPinShortcut {
+    enum Decision: Equatable {
+        case ignore
+        case consume
+        case performPin
+    }
+
+    private static let disallowedModifiers: NSEvent.ModifierFlags = [
+        .command,
+        .control,
+        .option,
+        .shift,
+        .function
+    ]
+
+    static func isBareSKeyDown(_ event: NSEvent) -> Bool {
+        event.type == .keyDown
+            && event.modifierFlags.intersection(disallowedModifiers).isEmpty
+            && event.charactersIgnoringModifiers?.lowercased() == "s"
+    }
+
+    static func decision(
+        for event: NSEvent,
+        isKeyWindow: Bool,
+        hasAttachedSheet: Bool,
+        isEditingText: Bool
+    ) -> Decision {
+        guard isKeyWindow,
+              !hasAttachedSheet,
+              !isEditingText,
+              isBareSKeyDown(event) else {
+            return .ignore
+        }
+        return event.isARepeat ? .consume : .performPin
+    }
+}
+
+@MainActor
+final class ScreenshotEditorWindow: NSWindow {
+    var onBareSPin: (() -> Void)?
+
+    override func sendEvent(_ event: NSEvent) {
+        switch ScreenshotEditorPinShortcut.decision(
+            for: event,
+            isKeyWindow: isKeyWindow,
+            hasAttachedSheet: attachedSheet != nil,
+            isEditingText: firstResponder is NSTextView
+        ) {
+        case .ignore:
+            super.sendEvent(event)
+        case .consume:
+            // Keep auto-repeat from leaking into the responder chain while the
+            // editor stays open after a failed pin attempt.
+            return
+        case .performPin:
+            guard let onBareSPin else {
+                super.sendEvent(event)
+                return
+            }
+            onBareSPin()
+        }
+    }
+}
+
+@MainActor
+final class ScreenshotEditorWindowController: NSWindowController, NSWindowDelegate {
+    typealias ShareHandler = @MainActor (Data) throws -> Void
+    typealias PinHandler = @MainActor (CGImage) throws -> Void
+    typealias CloseHandler = @MainActor () -> Void
+
+    private let editorModel: ScreenshotEditorViewModel
+    private let pinButton: NSButton
+    private var onClose: CloseHandler?
+    private var allowsClose = false
+    private var closeConfirmationIsVisible = false
+
+    init(
+        sourceURL: URL,
+        originalWasAutomaticallyCopied: Bool = false,
+        onPinImage: PinHandler? = nil,
+        onSharePNG: @escaping ShareHandler,
+        onClose: @escaping CloseHandler
+    ) throws {
+        let model = try ScreenshotEditorViewModel(
+            sourceURL: sourceURL,
+            originalWasAutomaticallyCopied: originalWasAutomaticallyCopied,
+            onPinImage: onPinImage,
+            onSharePNG: onSharePNG
+        )
+        editorModel = model
+        pinButton = NSButton()
+        self.onClose = onClose
+
+        let hostingController = NSHostingController(rootView: ScreenshotEditorView(model: model))
+        let window = ScreenshotEditorWindow(contentViewController: hostingController)
+        window.title = "编辑截图 — Crosio"
+        window.setContentSize(NSSize(width: 1120, height: 760))
+        window.minSize = NSSize(width: 880, height: 580)
+        window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
+        window.isReleasedWhenClosed = false
+        window.tabbingMode = .disallowed
+        window.collectionBehavior = [.managed, .participatesInCycle, .fullScreenAuxiliary]
+        window.hidesOnDeactivate = false
+
+        super.init(window: window)
+        window.delegate = self
+        window.onBareSPin = { [weak self] in
+            self?.editorModel.pinCurrentImage()
+        }
+        model.presentingWindow = window
+        installPinButton()
+        model.requestClose = { [weak self] in
+            self?.window?.performClose(nil)
+        }
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    func show() {
+        guard window != nil else { return }
+        window?.center()
+        bringToFront()
+    }
+
+    func bringToFront() {
+        NSApp.activate(ignoringOtherApps: true)
+        showWindow(nil)
+        window?.makeKeyAndOrderFront(nil)
+        window?.orderFrontRegardless()
+    }
+
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        guard !allowsClose, !editorModel.hasDeliveredOutput else {
+            return true
+        }
+        guard !closeConfirmationIsVisible else { return false }
+        closeConfirmationIsVisible = true
+
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        if editorModel.hasAnyDeliveredOutput {
+            alert.messageText = "关闭并放弃尚未输出的标注？"
+            alert.informativeText = "原始截图已自动复制到剪贴板，但当前标注尚未复制、保存或加入课堂共享区。关闭后会删除本次临时截图和标注。"
+        } else {
+            alert.messageText = editorModel.hasAnnotations
+                ? "关闭并放弃本次截图和标注？"
+                : "关闭并放弃本次截图？"
+            alert.informativeText = "这张截图尚未复制、保存或加入课堂共享区。关闭后会删除本次临时截图。"
+        }
+        alert.addButton(withTitle: "继续编辑")
+        alert.addButton(withTitle: "放弃并关闭")
+        alert.beginSheetModal(for: sender) { [weak self, weak sender] response in
+            guard let self else { return }
+            self.closeConfirmationIsVisible = false
+            guard response == .alertSecondButtonReturn else { return }
+            self.allowsClose = true
+            sender?.performClose(nil)
+        }
+        return false
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        editorModel.cancelInteraction()
+        (window as? ScreenshotEditorWindow)?.onBareSPin = nil
+        window?.delegate = nil
+        let handler = onClose
+        onClose = nil
+        handler?()
+    }
+
+    private func installPinButton() {
+        pinButton.setButtonType(.momentaryPushIn)
+        pinButton.title = ""
+        pinButton.bezelStyle = .inline
+        pinButton.isBordered = false
+        pinButton.imagePosition = .imageOnly
+        pinButton.imageScaling = .scaleProportionallyDown
+        pinButton.refusesFirstResponder = false
+        pinButton.target = self
+        pinButton.action = #selector(pinCurrentImage(_:))
+        pinButton.translatesAutoresizingMaskIntoConstraints = false
+        pinButton.setAccessibilityRole(.button)
+        pinButton.setAccessibilityLabel("将当前截图贴到屏幕")
+        pinButton.setAccessibilityHelp("创建只显示当前截图的小贴图并关闭编辑器，也可以按 S")
+        pinButton.image = NSImage(
+            systemSymbolName: "pin",
+            accessibilityDescription: "贴到屏幕"
+        )
+        pinButton.contentTintColor = .secondaryLabelColor
+        pinButton.toolTip = "贴到屏幕（S）"
+
+        let container = NSView(frame: NSRect(x: 0, y: 0, width: 38, height: 28))
+        container.addSubview(pinButton)
+        NSLayoutConstraint.activate([
+            pinButton.centerXAnchor.constraint(equalTo: container.centerXAnchor),
+            pinButton.centerYAnchor.constraint(equalTo: container.centerYAnchor),
+            pinButton.widthAnchor.constraint(equalToConstant: 28),
+            pinButton.heightAnchor.constraint(equalToConstant: 28)
+        ])
+
+        let accessory = NSTitlebarAccessoryViewController()
+        accessory.layoutAttribute = .right
+        accessory.view = container
+        window?.addTitlebarAccessoryViewController(accessory)
+    }
+
+    @objc
+    private func pinCurrentImage(_ sender: NSButton) {
+        editorModel.pinCurrentImage()
+    }
+}

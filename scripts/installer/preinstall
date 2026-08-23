@@ -1,0 +1,53 @@
+#!/bin/sh
+
+set -eu
+
+EXPECTED_BUNDLE_ID="com.cross.crosstool"
+EXPECTED_TEAM_ID="8LSY655LKD"
+TARGET_ROOT="${3:-/}"
+
+if [ "$TARGET_ROOT" = "/" ]; then
+    APPLICATIONS_DIR="/Applications"
+else
+    APPLICATIONS_DIR="$TARGET_ROOT/Applications"
+fi
+
+LEGACY_APP="$APPLICATIONS_DIR/crosstool.app"
+NEW_APP="$APPLICATIONS_DIR/Crosio.app"
+
+for APP_PATH in "$LEGACY_APP" "$NEW_APP"; do
+    APP_EXECUTABLE="$APP_PATH/Contents/MacOS/CrossToolApp"
+    if /usr/bin/pgrep -f "^${APP_EXECUTABLE}([[:space:]]|$)" >/dev/null 2>&1; then
+        echo "Please quit Crosio before installing this update: $APP_PATH" >&2
+        exit 1
+    fi
+done
+
+if [ ! -e "$LEGACY_APP" ]; then
+    exit 0
+fi
+
+if [ -L "$LEGACY_APP" ]; then
+    echo "Crosio installer refuses to replace a symbolic link at $LEGACY_APP" >&2
+    exit 1
+fi
+
+LEGACY_INFO="$LEGACY_APP/Contents/Info.plist"
+LEGACY_BUNDLE_ID="$(/usr/bin/plutil -extract CFBundleIdentifier raw -o - "$LEGACY_INFO" 2>/dev/null || true)"
+if [ "$LEGACY_BUNDLE_ID" != "$EXPECTED_BUNDLE_ID" ]; then
+    echo "Crosio installer found an unrelated app at $LEGACY_APP and will not replace it" >&2
+    exit 1
+fi
+
+if ! /usr/bin/codesign --verify --deep --strict "$LEGACY_APP" >/dev/null 2>&1; then
+    echo "Crosio installer found an invalidly signed legacy app at $LEGACY_APP" >&2
+    exit 1
+fi
+
+LEGACY_TEAM_ID="$(/usr/bin/codesign --display --verbose=4 "$LEGACY_APP" 2>&1 | /usr/bin/awk -F= '/^TeamIdentifier=/{print $2; exit}')"
+if [ "$LEGACY_TEAM_ID" != "$EXPECTED_TEAM_ID" ]; then
+    echo "Crosio installer found a legacy app from an unexpected developer team" >&2
+    exit 1
+fi
+
+exit 0

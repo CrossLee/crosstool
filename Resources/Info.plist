@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>zh_CN</string>
+    <key>CFBundleDisplayName</key>
+    <string>Crosio</string>
+    <key>CFBundleExecutable</key>
+    <string>CrossToolApp</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.cross.crosstool</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon.icns</string>
+    <key>CFBundleName</key>
+    <string>Crosio</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>0.4.0</string>
+	<key>CFBundleVersion</key>
+	<string>32</string>
+	<key>LSUIElement</key>
+	<true/>
+    <key>LSMinimumSystemVersion</key>
+    <string>14.0</string>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+    <key>NSLocalNetworkUsageDescription</key>
+    <string>Crosio 需要在当前局域网中提供文件和文字的浏览器收发服务。</string>
+    <key>NSScreenCaptureUsageDescription</key>
+    <string>Crosio 需要读取你选择的屏幕或窗口，用于截图、录屏、实时提取屏幕颜色，并在你开启时录制系统声音。</string>
+    <key>NSAppTransportSecurity</key>
+    <dict>
+        <key>NSAllowsLocalNetworking</key>
+        <true/>
+    </dict>
+</dict>
+</plist>
