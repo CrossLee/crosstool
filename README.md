@@ -4,10 +4,10 @@ Crosio 是一款本地优先的原生 macOS 工具箱，集截图与标注、屏
 
 ## 下载
 
-- [DMG 安装包（推荐）](https://github.com/CrossLee/crosstool/releases/download/v0.4.0/Crosio-0.4.0-macos-universal2.dmg)
-- [PKG 安装包](https://github.com/CrossLee/crosstool/releases/download/v0.4.0/Crosio-0.4.0-macos-universal2.pkg)
-- [ZIP 备用包](https://github.com/CrossLee/crosstool/releases/download/v0.4.0/Crosio-0.4.0-macos-universal2.zip)
-- [v0.4.0 发布说明与 SHA-256 校验](https://github.com/CrossLee/crosstool/releases/tag/v0.4.0)
+- [DMG 安装包（推荐）](https://github.com/CrossLee/crosstool/releases/download/v0.4.1/Crosio-0.4.1-macos-universal2.dmg)
+- [PKG 安装包](https://github.com/CrossLee/crosstool/releases/download/v0.4.1/Crosio-0.4.1-macos-universal2.pkg)
+- [ZIP 备用包](https://github.com/CrossLee/crosstool/releases/download/v0.4.1/Crosio-0.4.1-macos-universal2.zip)
+- [v0.4.1 发布说明与 SHA-256 校验](https://github.com/CrossLee/crosstool/releases/tag/v0.4.1)
 
 > 只想安装 Crosio 时，请下载文件名以 `Crosio-` 开头的 DMG、PKG 或 ZIP。GitHub 自动生成的“Source code”压缩包不是可直接运行的安装包。
 
@@ -20,7 +20,7 @@ Crosio 是一款本地优先的原生 macOS 工具箱，集截图与标注、屏
 ## 主要功能
 
 - 区域、窗口、全屏、5 秒延时、带壳、多窗口和长截图
-- 截图完成后立即复制原图，再进入标注编辑器
+- 截图完成后立即复制原图，再进入标注编辑器；关闭编辑器后不再自动弹回主窗口
 - 画笔、马赛克、矩形、箭头、撤销、重做、复制、另存和明确加入课堂共享区
 - 将截图创建为独立置顶小贴图，支持快捷键、拖动和鼠标滚轮或触控板缩放
 - 录制当前屏幕、窗口或框选区域，可选系统音频和鼠标光标
@@ -28,7 +28,7 @@ Crosio 是一款本地优先的原生 macOS 工具箱，集截图与标注、屏
 - macOS 15 本机双栏翻译，以及“选中文字 → 快捷键 → 自动中英互译”
 - 自定义全局快捷键
 - 课堂局域网公共共享盘：浏览器查看、下载、上传文件和发送文字
-- 菜单栏常驻，运行时不占用 Dock 或 `Command+Tab`
+- 菜单栏常驻，运行时不占用 Dock 或 `Command+Tab`；需要时可从菜单栏重新打开主窗口
 
 ## 安装
 

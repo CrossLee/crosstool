@@ -23,6 +23,7 @@ final class AppModel: ObservableObject {
     @Published private(set) var globalShortcuts = GlobalShortcutCommand.defaultGlobalShortcuts
     @Published var selectedDestination: SidebarDestination? = .home
     @Published private(set) var mainWindowOpenRequestID = 0
+    @Published private(set) var mainWindowDismissRequestID = 0
     @Published private(set) var textTranslationLaunchRequest: TextTranslationLaunchRequest?
 
     let sessionToken: String
@@ -702,7 +703,12 @@ final class AppModel: ObservableObject {
             } else {
                 notice = "截图已自动复制到剪贴板，可以继续标注或直接粘贴"
             }
-            controller.show()
+            if controller.show() {
+                // orderOut keeps a SwiftUI Window scene alive, so AppKit may
+                // order it front again when the editor closes. Ask SwiftUI to
+                // dismiss that exact scene after the editor has replaced it.
+                mainWindowDismissRequestID &+= 1
+            }
         } catch {
             removeScreenshotDraft(at: draftURL)
             if originalWasAutomaticallyCopied {

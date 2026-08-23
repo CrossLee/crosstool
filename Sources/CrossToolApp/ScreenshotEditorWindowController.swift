@@ -66,6 +66,79 @@ final class ScreenshotEditorWindow: NSWindow {
 }
 
 @MainActor
+final class ScreenshotEditorMainWindowSession {
+    private var hiddenWindows: [NSWindow]
+
+    var didHideMainWindow: Bool {
+        !hiddenWindows.isEmpty
+    }
+
+    static func shouldHide(
+        isEditorWindow: Bool,
+        title: String,
+        isVisible: Bool,
+        isMiniaturized: Bool,
+        canBecomeMain: Bool,
+        isTitled: Bool,
+        hasAttachedSheet: Bool
+    ) -> Bool {
+        !isEditorWindow
+            && title == "Crosio"
+            && isVisible
+            && !isMiniaturized
+            && canBecomeMain
+            && isTitled
+            && !hasAttachedSheet
+    }
+
+    convenience init(editorWindow: NSWindow) {
+        self.init(
+            editorWindow: editorWindow,
+            applicationWindows: NSApp.windows
+        )
+    }
+
+    init(
+        editorWindow: NSWindow,
+        applicationWindows: [NSWindow]
+    ) {
+        hiddenWindows = applicationWindows.filter { window in
+            Self.shouldHide(
+                isEditorWindow: window === editorWindow
+                    || window is ScreenshotEditorWindow,
+                title: window.title,
+                isVisible: window.isVisible,
+                isMiniaturized: window.isMiniaturized,
+                canBecomeMain: window.canBecomeMain,
+                isTitled: window.styleMask.contains(.titled),
+                hasAttachedSheet: window.attachedSheet != nil
+            )
+        }
+        for window in hiddenWindows {
+            window.orderOut(nil)
+        }
+    }
+
+    /// The screenshot editor replaces the main window for this interaction.
+    /// Keep the main window ordered out after the editor closes; the explicit
+    /// menu-bar "Open Main Window" action can order the same SwiftUI Window
+    /// back to the front later.
+    func commitKeepingHidden() {
+        hiddenWindows.removeAll()
+    }
+
+    /// Used only if editor presentation cannot complete after the main window
+    /// has already been hidden. Restoring is deliberately idempotent.
+    func restore() {
+        let windows = hiddenWindows
+        hiddenWindows.removeAll()
+        for window in windows {
+            window.orderFront(nil)
+        }
+    }
+}
+
+@MainActor
 final class ScreenshotEditorWindowController: NSWindowController, NSWindowDelegate {
     typealias ShareHandler = @MainActor (Data) throws -> Void
     typealias PinHandler = @MainActor (CGImage) throws -> Void
@@ -122,10 +195,20 @@ final class ScreenshotEditorWindowController: NSWindowController, NSWindowDelega
         fatalError("init(coder:) has not been implemented")
     }
 
-    func show() {
-        guard window != nil else { return }
-        window?.center()
+    @discardableResult
+    func show() -> Bool {
+        guard let window else { return false }
+        window.center()
         bringToFront()
+        // Activating the app can reorder an already-open SwiftUI Window back
+        // onto the screen. Hide it only after the editor is key and visible so
+        // closing the editor cannot reveal the main Crosio window underneath.
+        let mainWindowSession = ScreenshotEditorMainWindowSession(
+            editorWindow: window
+        )
+        let didHideMainWindow = mainWindowSession.didHideMainWindow
+        mainWindowSession.commitKeepingHidden()
+        return didHideMainWindow
     }
 
     func bringToFront() {

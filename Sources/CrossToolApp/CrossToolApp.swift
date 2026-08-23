@@ -32,6 +32,7 @@ struct CrossToolApp: App {
 
 private struct MenuBarStatusLabel: View {
     @Environment(\.openWindow) private var openWindow
+    @Environment(\.dismissWindow) private var dismissWindow
     @ObservedObject var model: AppModel
 
     var body: some View {
@@ -45,6 +46,10 @@ private struct MenuBarStatusLabel: View {
             guard requestID > 0 else { return }
             openWindow(id: "main")
             NSApp.activate(ignoringOtherApps: true)
+        }
+        .onChange(of: model.mainWindowDismissRequestID) { _, requestID in
+            guard requestID > 0 else { return }
+            dismissWindow(id: "main")
         }
     }
 }

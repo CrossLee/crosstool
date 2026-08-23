@@ -92,6 +92,117 @@ struct ScreenshotEditorWindowControllerTests {
         }
     }
 
+    @Test("Only an unobstructed visible Crosio main window is hidden")
+    func mainWindowHidingPolicyMatrix() {
+        #expect(shouldHideMainWindow())
+        #expect(!shouldHideMainWindow(isEditorWindow: true))
+        #expect(!shouldHideMainWindow(title: "编辑截图 — Crosio"))
+        #expect(!shouldHideMainWindow(isVisible: false))
+        #expect(!shouldHideMainWindow(isMiniaturized: true))
+        // Pinned panels and other non-main panels fail this boundary.
+        #expect(!shouldHideMainWindow(canBecomeMain: false))
+        #expect(!shouldHideMainWindow(isTitled: false))
+        #expect(!shouldHideMainWindow(hasAttachedSheet: true))
+    }
+
+    @Test("Controller show requests scene dismissal after hiding an eligible main window")
+    func controllerShowRequestsSceneDismissalForHiddenMainWindow() throws {
+        _ = NSApplication.shared
+        let sourceURL = try makeTemporaryPNG()
+        defer { try? FileManager.default.removeItem(at: sourceURL) }
+
+        let mainWindow = makeWindow(title: "Crosio")
+        let controller = try ScreenshotEditorWindowController(
+            sourceURL: sourceURL,
+            originalWasAutomaticallyCopied: true,
+            onSharePNG: { _ in },
+            onClose: {}
+        )
+        let editorWindow = try #require(controller.window)
+        defer {
+            NSApp.deactivate()
+            editorWindow.delegate = nil
+            editorWindow.orderOut(nil)
+            mainWindow.delegate = nil
+            mainWindow.orderOut(nil)
+        }
+
+        mainWindow.orderFront(nil)
+        #expect(mainWindow.isVisible)
+
+        let shouldDismissMainWindowScene = controller.show()
+
+        #expect(shouldDismissMainWindowScene)
+        #expect(editorWindow.isVisible)
+        #expect(!mainWindow.isVisible)
+    }
+
+    @Test("Controller show skips scene dismissal when no eligible main window exists")
+    func controllerShowWithoutMainWindowReturnsFalse() throws {
+        _ = NSApplication.shared
+        let sourceURL = try makeTemporaryPNG()
+        defer { try? FileManager.default.removeItem(at: sourceURL) }
+
+        let controller = try ScreenshotEditorWindowController(
+            sourceURL: sourceURL,
+            originalWasAutomaticallyCopied: true,
+            onSharePNG: { _ in },
+            onClose: {}
+        )
+        let editorWindow = try #require(controller.window)
+        defer {
+            NSApp.deactivate()
+            editorWindow.delegate = nil
+            editorWindow.orderOut(nil)
+        }
+
+        let shouldDismissMainWindowScene = controller.show()
+
+        #expect(!shouldDismissMainWindowScene)
+        #expect(editorWindow.isVisible)
+    }
+
+    @Test("Main window session commit and restore are terminal and idempotent")
+    func mainWindowSessionCommitAndRestoreAreIdempotent() {
+        let mainWindow = makeWindow(title: "Crosio")
+        let editorWindow = makeWindow(title: "编辑截图 — Crosio")
+        let windows = [mainWindow, editorWindow]
+        defer { closeWindows(windows) }
+
+        mainWindow.orderFront(nil)
+        #expect(mainWindow.isVisible)
+
+        let committedSession = ScreenshotEditorMainWindowSession(
+            editorWindow: editorWindow,
+            applicationWindows: windows
+        )
+        #expect(committedSession.didHideMainWindow)
+        #expect(!mainWindow.isVisible)
+
+        committedSession.commitKeepingHidden()
+        committedSession.commitKeepingHidden()
+        committedSession.restore()
+        #expect(!mainWindow.isVisible)
+
+        mainWindow.orderFront(nil)
+        let restoredSession = ScreenshotEditorMainWindowSession(
+            editorWindow: editorWindow,
+            applicationWindows: windows
+        )
+        #expect(restoredSession.didHideMainWindow)
+        #expect(!mainWindow.isVisible)
+
+        restoredSession.restore()
+        #expect(mainWindow.isVisible)
+
+        // A later cleanup must not resurrect a window that the user hid after
+        // the failed presentation was already rolled back.
+        mainWindow.orderOut(nil)
+        restoredSession.restore()
+        restoredSession.commitKeepingHidden()
+        #expect(!mainWindow.isVisible)
+    }
+
     @Test("Title-bar pin creates one detached image and closes the normal editor")
     func titleBarPinCreatesDetachedImage() throws {
         let sourceURL = try makeTemporaryPNG()
@@ -191,6 +302,46 @@ struct ScreenshotEditorWindowControllerTests {
         let pngData = try #require(bitmap.representation(using: .png, properties: [:]))
         try pngData.write(to: url, options: .atomic)
         return url
+    }
+
+    private func makeWindow(title: String) -> NSWindow {
+        let window = NSWindow(
+            contentRect: CGRect(x: 120, y: 120, width: 420, height: 280),
+            styleMask: [.titled, .closable],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = title
+        window.isReleasedWhenClosed = false
+        return window
+    }
+
+    private func shouldHideMainWindow(
+        isEditorWindow: Bool = false,
+        title: String = "Crosio",
+        isVisible: Bool = true,
+        isMiniaturized: Bool = false,
+        canBecomeMain: Bool = true,
+        isTitled: Bool = true,
+        hasAttachedSheet: Bool = false
+    ) -> Bool {
+        ScreenshotEditorMainWindowSession.shouldHide(
+            isEditorWindow: isEditorWindow,
+            title: title,
+            isVisible: isVisible,
+            isMiniaturized: isMiniaturized,
+            canBecomeMain: canBecomeMain,
+            isTitled: isTitled,
+            hasAttachedSheet: hasAttachedSheet
+        )
+    }
+
+    private func closeWindows(_ windows: [NSWindow]) {
+        for window in windows {
+            window.delegate = nil
+            window.orderOut(nil)
+            window.close()
+        }
     }
 
     private func makeKeyEvent(
