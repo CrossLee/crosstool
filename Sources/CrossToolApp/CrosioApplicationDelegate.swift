@@ -6,6 +6,13 @@ final class CrosioApplicationDelegate: NSObject, NSApplicationDelegate {
 
     private var pendingTerminationTask: Task<Void, Never>?
 
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        // SMAppService is the single source of truth for login launches. Disable
+        // AppKit's separate restore-on-login path so the in-app switch cannot be
+        // bypassed by macOS window restoration.
+        NSApp.disableRelaunchOnLogin()
+    }
+
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard let recordingModel = Self.recordingModel, recordingModel.isBusy else {
             return .terminateNow

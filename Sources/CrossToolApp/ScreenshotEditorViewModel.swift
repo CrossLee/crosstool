@@ -26,6 +26,9 @@ final class ScreenshotEditorViewModel: ObservableObject {
     @Published private(set) var hasDeliveredOutput = false
     private(set) var hasAnyDeliveredOutput = false
     @Published private(set) var statusMessage: String?
+    @Published private(set) var textRecognitionState: ScreenshotTextRecognitionState = .idle
+    @Published private(set) var recognizedText = ""
+    @Published private(set) var textCopyMessage: String?
 
     let pixelWidth: Int
     let pixelHeight: Int
@@ -38,13 +41,20 @@ final class ScreenshotEditorViewModel: ObservableObject {
     private let onSharePNG: ShareHandler
     private let onPinImage: PinHandler?
     private let pasteboardWriter: any ScreenshotPasteboardWriting
+    private let textRecognizer: any ScreenshotTextRecognizing
+    private let textPasteboardWriter: any ScreenshotTextPasteboardWriting
+    private let textRecognitionImage: CGImage
     private var history = ScreenshotEditHistory()
     private var deliveredOperations: [ScreenshotEditOperation]?
+    private var textRecognitionTask: Task<Void, Never>?
+    private var textRecognitionRequestID: UUID?
 
     init(
         sourceURL: URL,
         originalWasAutomaticallyCopied: Bool = false,
         pasteboardWriter: (any ScreenshotPasteboardWriting)? = nil,
+        textRecognizer: (any ScreenshotTextRecognizing)? = nil,
+        textPasteboardWriter: (any ScreenshotTextPasteboardWriting)? = nil,
         onPinImage: PinHandler? = nil,
         onSharePNG: @escaping ShareHandler
     ) throws {
@@ -54,6 +64,9 @@ final class ScreenshotEditorViewModel: ObservableObject {
         self.onSharePNG = onSharePNG
         self.onPinImage = onPinImage
         self.pasteboardWriter = pasteboardWriter ?? ScreenshotPasteboardWriter()
+        self.textRecognizer = textRecognizer ?? VisionScreenshotTextRecognizer()
+        self.textPasteboardWriter = textPasteboardWriter ?? ScreenshotTextPasteboardWriter()
+        self.textRecognitionImage = renderer.originalImage
         self.previewImage = renderer.originalImage
         self.mosaicPreviewImage = nil
         self.pixelWidth = renderer.pixelWidth
@@ -62,6 +75,42 @@ final class ScreenshotEditorViewModel: ObservableObject {
             deliveredOperations = []
             hasAnyDeliveredOutput = true
             hasDeliveredOutput = true
+        }
+    }
+
+    var recognizedCharacterCount: Int {
+        recognizedText.count
+    }
+
+    var canCopyRecognizedText: Bool {
+        textRecognitionState == .recognized && !recognizedText.isEmpty
+    }
+
+    func startAutomaticTextRecognition() {
+        guard textRecognitionState == .idle else { return }
+        beginTextRecognition()
+    }
+
+    func retryTextRecognition() {
+        beginTextRecognition()
+    }
+
+    func cancelTextRecognition() {
+        textRecognitionRequestID = nil
+        textRecognitionTask?.cancel()
+        textRecognitionTask = nil
+        if textRecognitionState == .recognizing {
+            textRecognitionState = .idle
+        }
+    }
+
+    func copyRecognizedText() {
+        guard canCopyRecognizedText else { return }
+        do {
+            try textPasteboardWriter.writeText(recognizedText)
+            textCopyMessage = "文字已复制到剪贴板"
+        } catch {
+            textCopyMessage = "复制文字失败：\(error.localizedDescription)"
         }
     }
 
@@ -269,6 +318,54 @@ final class ScreenshotEditorViewModel: ObservableObject {
             requestClose?()
         } catch {
             statusMessage = "加入共享区失败：\(error.localizedDescription)"
+        }
+    }
+
+    private func beginTextRecognition() {
+        textRecognitionRequestID = nil
+        textRecognitionTask?.cancel()
+
+        let requestID = UUID()
+        let recognizer = textRecognizer
+        let image = textRecognitionImage
+        textRecognitionRequestID = requestID
+        recognizedText = ""
+        textCopyMessage = nil
+        textRecognitionState = .recognizing
+
+        textRecognitionTask = Task { [weak self, recognizer, image] in
+            let result: Result<String, Error>
+            do {
+                result = .success(try await recognizer.recognizeText(in: image))
+            } catch {
+                result = .failure(error)
+            }
+
+            guard !Task.isCancelled, let self else { return }
+            self.applyTextRecognitionResult(result, requestID: requestID)
+        }
+    }
+
+    private func applyTextRecognitionResult(
+        _ result: Result<String, Error>,
+        requestID: UUID
+    ) {
+        guard textRecognitionRequestID == requestID else { return }
+        textRecognitionRequestID = nil
+        textRecognitionTask = nil
+
+        switch result {
+        case .success(let text):
+            let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            recognizedText = trimmed
+            textRecognitionState = trimmed.isEmpty ? .empty : .recognized
+        case .failure(let error):
+            if error is CancellationError {
+                textRecognitionState = .idle
+            } else {
+                recognizedText = ""
+                textRecognitionState = .failed(error.localizedDescription)
+            }
         }
     }
 

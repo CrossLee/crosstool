@@ -513,9 +513,11 @@ private struct HistoryPage: View {
 
 private struct SettingsPage: View {
     @EnvironmentObject private var model: AppModel
+    @StateObject private var loginItemSettings = LoginItemSettingsModel()
 
     var body: some View {
         Form {
+            LoginItemSettingsSection(model: loginItemSettings)
             Section("共享服务") {
                 LabeledContent("默认端口", value: String(model.port))
                 LabeledContent("传输范围", value: "当前局域网")

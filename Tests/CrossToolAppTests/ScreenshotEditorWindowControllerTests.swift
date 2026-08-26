@@ -92,6 +92,46 @@ struct ScreenshotEditorWindowControllerTests {
         }
     }
 
+    @Test("Command C copies the image unless OCR text has a selection")
+    func commandCCopyRouting() throws {
+        let commandC = try makeKeyEvent(
+            modifierFlags: .command,
+            characters: "c",
+            keyCode: 8
+        )
+        let repeatedCommandC = try makeKeyEvent(
+            modifierFlags: .command,
+            characters: "c",
+            keyCode: 8,
+            isARepeat: true
+        )
+
+        #expect(ScreenshotEditorCopyShortcut.decision(
+            for: commandC,
+            isKeyWindow: true,
+            hasAttachedSheet: false,
+            hasSelectedText: false
+        ) == .copyImage)
+        #expect(ScreenshotEditorCopyShortcut.decision(
+            for: repeatedCommandC,
+            isKeyWindow: true,
+            hasAttachedSheet: false,
+            hasSelectedText: false
+        ) == .consume)
+        #expect(ScreenshotEditorCopyShortcut.decision(
+            for: commandC,
+            isKeyWindow: true,
+            hasAttachedSheet: false,
+            hasSelectedText: true
+        ) == .forwardToTextResponder)
+        #expect(ScreenshotEditorCopyShortcut.decision(
+            for: commandC,
+            isKeyWindow: true,
+            hasAttachedSheet: true,
+            hasSelectedText: false
+        ) == .ignore)
+    }
+
     @Test("Only an unobstructed visible Crosio main window is hidden")
     func mainWindowHidingPolicyMatrix() {
         #expect(shouldHideMainWindow())

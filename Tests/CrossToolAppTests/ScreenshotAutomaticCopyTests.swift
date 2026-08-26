@@ -24,6 +24,18 @@ struct ScreenshotAutomaticCopyTests {
         #expect(NSImage(pasteboard: pasteboard) != nil)
     }
 
+    @Test("Text pasteboard writer stores OCR text only when explicitly called")
+    func writesRecognizedTextToPasteboard() throws {
+        let pasteboard = NSPasteboard(name: .init("crosio-ocr-test-\(UUID())"))
+        defer { pasteboard.releaseGlobally() }
+
+        try ScreenshotTextPasteboardWriter(pasteboard: pasteboard)
+            .writeText("中文 and English")
+
+        #expect(pasteboard.string(forType: .string) == "中文 and English")
+        #expect(pasteboard.data(forType: .png) == nil)
+    }
+
     @Test("Automatically copied original remains delivered until annotations change")
     func tracksTheDeliveredEditRevision() throws {
         let sourceURL = try makeTemporaryPNG()
@@ -172,6 +184,131 @@ struct ScreenshotAutomaticCopyTests {
         #expect(model.statusMessage?.contains("创建悬浮贴图失败") == true)
     }
 
+    @Test("OCR recognizes the original without replacing the automatically copied image")
+    func recognizesTextWithoutAutomaticTextCopy() async throws {
+        let sourceURL = try makeTemporaryPNG()
+        defer { try? FileManager.default.removeItem(at: sourceURL) }
+        let imageWriter = RecordingScreenshotPasteboardWriter()
+        let textWriter = RecordingScreenshotTextPasteboardWriter()
+        let model = try ScreenshotEditorViewModel(
+            sourceURL: sourceURL,
+            originalWasAutomaticallyCopied: true,
+            pasteboardWriter: imageWriter,
+            textRecognizer: ImmediateScreenshotTextRecognizer(text: "  第一行\nSecond line  "),
+            textPasteboardWriter: textWriter,
+            onSharePNG: { _ in }
+        )
+
+        model.startAutomaticTextRecognition()
+        #expect(await waitUntil { model.textRecognitionState == .recognized })
+
+        #expect(model.recognizedText == "第一行\nSecond line")
+        #expect(model.recognizedCharacterCount == 15)
+        #expect(model.canCopyRecognizedText)
+        #expect(textWriter.writtenTexts.isEmpty)
+        #expect(imageWriter.writeCount == 0)
+        #expect(model.hasDeliveredOutput)
+        #expect(model.hasAnyDeliveredOutput)
+
+        var closeCount = 0
+        model.requestClose = { closeCount += 1 }
+        model.copyRecognizedText()
+
+        #expect(textWriter.writtenTexts == ["第一行\nSecond line"])
+        #expect(imageWriter.writeCount == 0)
+        #expect(closeCount == 0)
+        #expect(model.hasDeliveredOutput)
+        #expect(model.textCopyMessage == "文字已复制到剪贴板")
+    }
+
+    @Test("OCR distinguishes empty output and can retry after a failure")
+    func handlesEmptyFailureAndRetry() async throws {
+        let sourceURL = try makeTemporaryPNG()
+        defer { try? FileManager.default.removeItem(at: sourceURL) }
+
+        let emptyModel = try ScreenshotEditorViewModel(
+            sourceURL: sourceURL,
+            textRecognizer: ImmediateScreenshotTextRecognizer(text: " \n\t "),
+            textPasteboardWriter: RecordingScreenshotTextPasteboardWriter(),
+            onSharePNG: { _ in }
+        )
+        emptyModel.startAutomaticTextRecognition()
+        #expect(await waitUntil { emptyModel.textRecognitionState == .empty })
+        #expect(emptyModel.recognizedText.isEmpty)
+        #expect(!emptyModel.canCopyRecognizedText)
+
+        let recognizer = SequenceScreenshotTextRecognizer(outcomes: [
+            .failure("本机识别器暂时不可用"),
+            .text("重试成功")
+        ])
+        let retryModel = try ScreenshotEditorViewModel(
+            sourceURL: sourceURL,
+            textRecognizer: recognizer,
+            textPasteboardWriter: RecordingScreenshotTextPasteboardWriter(),
+            onSharePNG: { _ in }
+        )
+        retryModel.startAutomaticTextRecognition()
+        #expect(await waitUntil {
+            retryModel.textRecognitionState == .failed("本机识别器暂时不可用")
+        })
+
+        retryModel.retryTextRecognition()
+        #expect(await waitUntil { retryModel.textRecognitionState == .recognized })
+        #expect(retryModel.recognizedText == "重试成功")
+        #expect(await recognizer.currentCallCount() == 2)
+    }
+
+    @Test("A cancelled late OCR result cannot overwrite a newer request")
+    func ignoresCancelledLateRecognitionResult() async throws {
+        let sourceURL = try makeTemporaryPNG()
+        defer { try? FileManager.default.removeItem(at: sourceURL) }
+        let recognizer = ControlledScreenshotTextRecognizer()
+        let model = try ScreenshotEditorViewModel(
+            sourceURL: sourceURL,
+            textRecognizer: recognizer,
+            textPasteboardWriter: RecordingScreenshotTextPasteboardWriter(),
+            onSharePNG: { _ in }
+        )
+
+        model.startAutomaticTextRecognition()
+        model.startAutomaticTextRecognition()
+        #expect(await waitUntil { await recognizer.currentCallCount() == 1 })
+
+        model.retryTextRecognition()
+        #expect(await waitUntil { await recognizer.currentCallCount() == 2 })
+        await recognizer.complete(call: 0, with: "旧文字")
+        await Task.yield()
+        #expect(model.textRecognitionState == .recognizing)
+        #expect(model.recognizedText.isEmpty)
+
+        await recognizer.complete(call: 1, with: "新文字")
+        #expect(await waitUntil { model.textRecognitionState == .recognized })
+        #expect(model.recognizedText == "新文字")
+    }
+
+    @Test("Cancelling OCR returns to idle and ignores its eventual response")
+    func cancelsRecognition() async throws {
+        let sourceURL = try makeTemporaryPNG()
+        defer { try? FileManager.default.removeItem(at: sourceURL) }
+        let recognizer = ControlledScreenshotTextRecognizer()
+        let model = try ScreenshotEditorViewModel(
+            sourceURL: sourceURL,
+            textRecognizer: recognizer,
+            textPasteboardWriter: RecordingScreenshotTextPasteboardWriter(),
+            onSharePNG: { _ in }
+        )
+
+        model.startAutomaticTextRecognition()
+        #expect(await waitUntil { await recognizer.currentCallCount() == 1 })
+        model.cancelTextRecognition()
+        #expect(model.textRecognitionState == .idle)
+
+        await recognizer.complete(call: 0, with: "不应出现")
+        await Task.yield()
+        #expect(model.textRecognitionState == .idle)
+        #expect(model.recognizedText.isEmpty)
+    }
+
     private func makeTemporaryPNG() throws -> URL {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("crosio-screenshot-\(UUID()).png")
@@ -194,6 +331,16 @@ struct ScreenshotAutomaticCopyTests {
         context.fill(CGRect(x: 0, y: 0, width: 2, height: 2))
         return try ScreenshotEditorRenderer.pngData(from: #require(context.makeImage()))
     }
+
+    private func waitUntil(
+        _ condition: @escaping @MainActor () async -> Bool
+    ) async -> Bool {
+        for _ in 0..<200 {
+            if await condition() { return true }
+            try? await Task.sleep(nanoseconds: 5_000_000)
+        }
+        return false
+    }
 }
 
 @MainActor
@@ -208,5 +355,85 @@ private final class RecordingScreenshotPasteboardWriter: ScreenshotPasteboardWri
     func writePNG(_ pngData: Data, tiffData: Data?) throws {
         writeCount += 1
         if let error { throw error }
+    }
+}
+
+private struct ImmediateScreenshotTextRecognizer: ScreenshotTextRecognizing {
+    let text: String
+
+    func recognizeText(in image: CGImage) async throws -> String {
+        text
+    }
+}
+
+private actor SequenceScreenshotTextRecognizer: ScreenshotTextRecognizing {
+    enum Outcome: Sendable {
+        case text(String)
+        case failure(String)
+    }
+
+    private var outcomes: [Outcome]
+    private var callCount = 0
+
+    init(outcomes: [Outcome]) {
+        self.outcomes = outcomes
+    }
+
+    func recognizeText(in image: CGImage) async throws -> String {
+        let index = callCount
+        callCount += 1
+        let outcome = outcomes[min(index, outcomes.count - 1)]
+        switch outcome {
+        case .text(let text):
+            return text
+        case .failure(let message):
+            throw ScreenshotTextRecognizerTestError(message: message)
+        }
+    }
+
+    func currentCallCount() -> Int {
+        callCount
+    }
+}
+
+private actor ControlledScreenshotTextRecognizer: ScreenshotTextRecognizing {
+    private var callCount = 0
+    private var continuations: [Int: CheckedContinuation<String, Error>] = [:]
+
+    func recognizeText(in image: CGImage) async throws -> String {
+        let call = callCount
+        callCount += 1
+        return try await withCheckedThrowingContinuation { continuation in
+            continuations[call] = continuation
+        }
+    }
+
+    func currentCallCount() -> Int {
+        callCount
+    }
+
+    func complete(call: Int, with text: String) {
+        continuations.removeValue(forKey: call)?.resume(returning: text)
+    }
+}
+
+private struct ScreenshotTextRecognizerTestError: LocalizedError {
+    let message: String
+
+    var errorDescription: String? { message }
+}
+
+@MainActor
+private final class RecordingScreenshotTextPasteboardWriter: ScreenshotTextPasteboardWriting {
+    private(set) var writtenTexts: [String] = []
+    private let error: Error?
+
+    init(error: Error? = nil) {
+        self.error = error
+    }
+
+    func writeText(_ text: String) throws {
+        if let error { throw error }
+        writtenTexts.append(text)
     }
 }

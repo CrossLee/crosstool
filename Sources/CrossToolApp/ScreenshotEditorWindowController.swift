@@ -38,16 +38,69 @@ enum ScreenshotEditorPinShortcut {
     }
 }
 
+enum ScreenshotEditorCopyShortcut {
+    enum Decision: Equatable {
+        case ignore
+        case forwardToTextResponder
+        case consume
+        case copyImage
+    }
+
+    static func decision(
+        for event: NSEvent,
+        isKeyWindow: Bool,
+        hasAttachedSheet: Bool,
+        hasSelectedText: Bool
+    ) -> Decision {
+        let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        guard event.type == .keyDown,
+              isKeyWindow,
+              !hasAttachedSheet,
+              modifiers == .command,
+              event.charactersIgnoringModifiers?.lowercased() == "c" else {
+            return .ignore
+        }
+        if hasSelectedText {
+            return .forwardToTextResponder
+        }
+        return event.isARepeat ? .consume : .copyImage
+    }
+}
+
 @MainActor
 final class ScreenshotEditorWindow: NSWindow {
     var onBareSPin: (() -> Void)?
+    var onCommandCCopyImage: (() -> Void)?
 
     override func sendEvent(_ event: NSEvent) {
+        let textView = firstResponder as? NSTextView
+        switch ScreenshotEditorCopyShortcut.decision(
+            for: event,
+            isKeyWindow: isKeyWindow,
+            hasAttachedSheet: attachedSheet != nil,
+            hasSelectedText: (textView?.selectedRange().length ?? 0) > 0
+        ) {
+        case .ignore:
+            break
+        case .forwardToTextResponder:
+            super.sendEvent(event)
+            return
+        case .consume:
+            return
+        case .copyImage:
+            guard let onCommandCCopyImage else {
+                super.sendEvent(event)
+                return
+            }
+            onCommandCCopyImage()
+            return
+        }
+
         switch ScreenshotEditorPinShortcut.decision(
             for: event,
             isKeyWindow: isKeyWindow,
             hasAttachedSheet: attachedSheet != nil,
-            isEditingText: firstResponder is NSTextView
+            isEditingText: textView?.isEditable == true
         ) {
         case .ignore:
             super.sendEvent(event)
@@ -183,6 +236,9 @@ final class ScreenshotEditorWindowController: NSWindowController, NSWindowDelega
         window.onBareSPin = { [weak self] in
             self?.editorModel.pinCurrentImage()
         }
+        window.onCommandCCopyImage = { [weak self] in
+            self?.editorModel.copyToPasteboard()
+        }
         model.presentingWindow = window
         installPinButton()
         model.requestClose = { [weak self] in
@@ -249,8 +305,12 @@ final class ScreenshotEditorWindowController: NSWindowController, NSWindowDelega
     }
 
     func windowWillClose(_ notification: Notification) {
+        editorModel.cancelTextRecognition()
         editorModel.cancelInteraction()
-        (window as? ScreenshotEditorWindow)?.onBareSPin = nil
+        if let editorWindow = window as? ScreenshotEditorWindow {
+            editorWindow.onBareSPin = nil
+            editorWindow.onCommandCCopyImage = nil
+        }
         window?.delegate = nil
         let handler = onClose
         onClose = nil

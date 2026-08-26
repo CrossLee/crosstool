@@ -9,12 +9,142 @@ struct ScreenshotEditorView: View {
         VStack(spacing: 0) {
             editorToolbar
             Divider()
-            ScreenshotEditorCanvas(model: model)
+            HStack(spacing: 0) {
+                ScreenshotEditorCanvas(model: model)
+                Divider()
+                textRecognitionInspector
+                    .frame(width: 300)
+            }
             Divider()
             footer
         }
         .frame(minWidth: 880, minHeight: 580)
         .background(Color(nsColor: .windowBackgroundColor))
+        .task {
+            model.startAutomaticTextRecognition()
+        }
+    }
+
+    private var textRecognitionInspector: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 8) {
+                Image(systemName: "text.viewfinder")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(Color.crossToolAccent)
+                Text("自动 OCR")
+                    .font(.headline)
+                Spacer()
+                Text("本机")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(Color.crossToolAccent)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .background(Color.crossToolAccent.opacity(0.12), in: Capsule())
+            }
+
+            Text("由 Mac 在本机识别原图，不上传截图")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            Group {
+                switch model.textRecognitionState {
+                case .idle, .recognizing:
+                    VStack(spacing: 12) {
+                        ProgressView()
+                            .controlSize(.small)
+                        Text("正在本机识别中…")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+                case .recognized:
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack {
+                            Text("识别出 \(model.recognizedCharacterCount) 个字符")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            Button("重新识别") {
+                                model.retryTextRecognition()
+                            }
+                            .buttonStyle(.link)
+                            .font(.caption)
+                        }
+
+                        ScrollView {
+                            Text(model.recognizedText)
+                                .font(.system(size: 13))
+                                .textSelection(.enabled)
+                                .frame(maxWidth: .infinity, alignment: .topLeading)
+                                .padding(10)
+                        }
+                        .background(
+                            Color(nsColor: .textBackgroundColor),
+                            in: RoundedRectangle(cornerRadius: 8)
+                        )
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(Color.primary.opacity(0.1), lineWidth: 1)
+                        }
+
+                        Button("复制文字", systemImage: "doc.on.doc") {
+                            model.copyRecognizedText()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(.crossToolAccent)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                    }
+
+                case .empty:
+                    recognitionPlaceholder(
+                        systemImage: "text.magnifyingglass",
+                        title: "没有识别到文字",
+                        detail: "可以确认截图里有清晰文字后再试一次"
+                    )
+
+                case .failed(let message):
+                    recognitionPlaceholder(
+                        systemImage: "exclamationmark.triangle",
+                        title: "文字识别失败",
+                        detail: message
+                    )
+                }
+            }
+
+            if let message = model.textCopyMessage {
+                Text(message)
+                    .font(.caption)
+                    .foregroundStyle(
+                        message.hasPrefix("复制文字失败") ? Color.red : Color.crossToolAccent
+                    )
+            }
+        }
+        .padding(16)
+        .background(Color(nsColor: .controlBackgroundColor))
+    }
+
+    private func recognitionPlaceholder(
+        systemImage: String,
+        title: String,
+        detail: String
+    ) -> some View {
+        VStack(spacing: 10) {
+            Image(systemName: systemImage)
+                .font(.system(size: 26))
+                .foregroundStyle(.secondary)
+            Text(title)
+                .font(.callout.weight(.medium))
+            Text(detail)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+            Button("重新识别") {
+                model.retryTextRecognition()
+            }
+            .buttonStyle(.bordered)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var editorToolbar: some View {
@@ -142,7 +272,7 @@ struct ScreenshotEditorView: View {
             Button("复制图片", systemImage: "doc.on.doc") {
                 model.copyToPasteboard()
             }
-            .keyboardShortcut("c", modifiers: .command)
+            .help("复制图片（⌘C；选中 OCR 文字时复制所选文字）")
 
             Button("另存为…", systemImage: "square.and.arrow.down") {
                 model.saveAsPNG()
