@@ -4,10 +4,10 @@ Crosio 是一款本地优先的原生 macOS 工具箱，集截图与标注、屏
 
 ## 下载
 
-- [DMG 安装包（推荐）](https://github.com/CrossLee/crosstool/releases/download/v0.5.0/Crosio-0.5.0-macos-universal2.dmg)
-- [PKG 安装包](https://github.com/CrossLee/crosstool/releases/download/v0.5.0/Crosio-0.5.0-macos-universal2.pkg)
-- [ZIP 备用包](https://github.com/CrossLee/crosstool/releases/download/v0.5.0/Crosio-0.5.0-macos-universal2.zip)
-- [v0.5.0 发布说明与 SHA-256 校验](https://github.com/CrossLee/crosstool/releases/tag/v0.5.0)
+- [DMG 安装包（推荐）](https://github.com/CrossLee/crosstool/releases/download/v0.5.1/Crosio-0.5.1-macos-universal2.dmg)
+- [PKG 安装包](https://github.com/CrossLee/crosstool/releases/download/v0.5.1/Crosio-0.5.1-macos-universal2.pkg)
+- [ZIP 备用包](https://github.com/CrossLee/crosstool/releases/download/v0.5.1/Crosio-0.5.1-macos-universal2.zip)
+- [v0.5.1 发布说明与 SHA-256 校验](https://github.com/CrossLee/crosstool/releases/tag/v0.5.1)
 
 > 只想安装 Crosio 时，请下载文件名以 `Crosio-` 开头的 DMG、PKG 或 ZIP。GitHub 自动生成的“Source code”压缩包不是可直接运行的安装包。
 

@@ -113,6 +113,22 @@ struct MainWindowView: View {
     }
 }
 
+enum DashboardGreeting {
+    static func text(
+        for date: Date,
+        calendar: Calendar = .autoupdatingCurrent
+    ) -> String {
+        switch calendar.component(.hour, from: date) {
+        case 5..<12:
+            return "早上好"
+        case 12..<18:
+            return "下午好"
+        default:
+            return "晚上好"
+        }
+    }
+}
+
 private struct DashboardView: View {
     @EnvironmentObject private var model: AppModel
     @State private var showingImporter = false
@@ -122,8 +138,10 @@ private struct DashboardView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                Text("早上好")
-                    .font(.system(size: 30, weight: .semibold))
+                TimelineView(.everyMinute) { context in
+                    Text(DashboardGreeting.text(for: context.date))
+                        .font(.system(size: 30, weight: .semibold))
+                }
 
                 SharingStatusCard(showingQRCode: $showingQRCode)
 
