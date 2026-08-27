@@ -1,13 +1,13 @@
 # Crosio
 
-Crosio 是一款本地优先的原生 macOS 工具箱，集截图与标注、屏幕录制、屏幕取色、本机翻译和课堂局域网共享于一体。无需账号或云端服务；学生无需安装 App，使用浏览器即可参与文件和文字互传。
+Crosio 是一款本地优先的原生 macOS 工具箱，集截图与标注、图片压缩、屏幕录制、屏幕取色、本机翻译和课堂局域网共享于一体。无需账号或云端服务；学生无需安装 App，使用浏览器即可参与文件和文字互传。
 
 ## 下载
 
-- [DMG 安装包（推荐）](https://github.com/CrossLee/crosstool/releases/download/v0.5.1/Crosio-0.5.1-macos-universal2.dmg)
-- [PKG 安装包](https://github.com/CrossLee/crosstool/releases/download/v0.5.1/Crosio-0.5.1-macos-universal2.pkg)
-- [ZIP 备用包](https://github.com/CrossLee/crosstool/releases/download/v0.5.1/Crosio-0.5.1-macos-universal2.zip)
-- [v0.5.1 发布说明与 SHA-256 校验](https://github.com/CrossLee/crosstool/releases/tag/v0.5.1)
+- [DMG 安装包（推荐）](https://github.com/CrossLee/crosstool/releases/download/v0.6.0/Crosio-0.6.0-macos-universal2.dmg)
+- [PKG 安装包](https://github.com/CrossLee/crosstool/releases/download/v0.6.0/Crosio-0.6.0-macos-universal2.pkg)
+- [ZIP 备用包](https://github.com/CrossLee/crosstool/releases/download/v0.6.0/Crosio-0.6.0-macos-universal2.zip)
+- [v0.6.0 发布说明与 SHA-256 校验](https://github.com/CrossLee/crosstool/releases/tag/v0.6.0)
 
 > 只想安装 Crosio 时，请下载文件名以 `Crosio-` 开头的 DMG、PKG 或 ZIP。GitHub 自动生成的“Source code”压缩包不是可直接运行的安装包。
 
@@ -24,6 +24,7 @@ Crosio 是一款本地优先的原生 macOS 工具箱，集截图与标注、屏
 - 截图编辑器自动使用 Mac 本机 Vision 识别中英文，长截图分段识别，按需复制文字
 - 画笔、马赛克、矩形、箭头、撤销、重做、复制、另存和明确加入课堂共享区
 - 将截图创建为独立置顶小贴图，支持快捷键、拖动和鼠标滚轮或触控板缩放
+- 在 Mac 本地批量压缩图片，可设置目标大小、最长边和 JPEG、HEIC、PNG 输出；原图不会被覆盖
 - 录制当前屏幕、窗口或框选区域，可选系统音频和鼠标光标
 - 实时屏幕取色，提供 HEX、RGB、HSL 和最近颜色
 - macOS 15 本机双栏翻译，以及“选中文字 → 快捷键 → 自动中英互译”
@@ -57,6 +58,7 @@ Crosio 是一款本地优先的原生 macOS 工具箱，集截图与标注、屏
 - 当前录屏不采集麦克风。
 - 截图、录屏和翻译历史默认保存在本机；截图不会因为自动复制而自动公开。
 - 截图 OCR 完全在 Mac 本机处理，不上传图片；识别结果仅在点击“复制文字”后写入剪贴板。
+- 图片压缩完全在 Mac 本机处理，不上传图片；只有结果确实小于原图时才会保存新文件。
 - 浏览器上传内容会进入当前公共列表，并保存在本机接收箱。持有当前分享链接的人可以查看、下载和上传，请只分享给可信参与者。
 - 停止共享会立即停止本地 HTTP 服务。
 

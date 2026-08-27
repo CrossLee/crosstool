@@ -28,6 +28,7 @@ final class AppModel: ObservableObject {
 
     let sessionToken: String
     let colorSampler = ColorSamplerViewModel()
+    let imageCompression = ImageCompressionFeatureModel()
     let screenRecording = ScreenRecordingFeatureModel()
     @Published private(set) var port: UInt16 = 5421
 
@@ -45,6 +46,7 @@ final class AppModel: ObservableObject {
     private let selectedTextCaptureService = SelectedTextCaptureService()
     private var selectedTextTranslationTask: Task<Void, Never>?
     private var isPreparingColorSampling = false
+    private var lastClaimedMainWindowOpenRequestID = 0
 
     init() {
         let directories = Self.makeDirectories()
@@ -76,6 +78,9 @@ final class AppModel: ObservableObject {
         self.screenshotDraftsDirectory = directories.drafts
         self.globalShortcuts = shortcutLoadResult.shortcuts
         CrosioApplicationDelegate.recordingModel = screenRecording
+        CrosioApplicationDelegate.imageOpenRequestBroker.install { [weak self] urls in
+            self?.presentImageCompression(importing: urls)
+        }
 
         createdStore.setChangeHandler { [weak self] in
             Task { @MainActor in
@@ -244,6 +249,22 @@ final class AppModel: ObservableObject {
         textTranslationLaunchRequest = nil
         selectedDestination = .translation
         mainWindowOpenRequestID &+= 1
+    }
+
+    func presentImageCompression() {
+        selectedDestination = .imageCompression
+        mainWindowOpenRequestID &+= 1
+    }
+
+    func presentImageCompression(importing urls: [URL]) {
+        imageCompression.addImages(urls)
+        presentImageCompression()
+    }
+
+    func claimMainWindowOpenRequest(_ requestID: Int) -> Bool {
+        guard requestID > lastClaimedMainWindowOpenRequestID else { return false }
+        lastClaimedMainWindowOpenRequestID = requestID
+        return true
     }
 
     func consumeTextTranslationLaunchRequest(_ requestID: UUID) {

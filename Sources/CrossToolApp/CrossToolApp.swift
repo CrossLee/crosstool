@@ -42,14 +42,21 @@ private struct MenuBarStatusLabel: View {
                 ? "record.circle.fill"
                 : (model.isServerRunning ? "square.and.arrow.up.fill" : "square.and.arrow.up")
         )
+        .onAppear {
+            openMainWindowIfNeeded(for: model.mainWindowOpenRequestID)
+        }
         .onChange(of: model.mainWindowOpenRequestID) { _, requestID in
-            guard requestID > 0 else { return }
-            openWindow(id: "main")
-            NSApp.activate(ignoringOtherApps: true)
+            openMainWindowIfNeeded(for: requestID)
         }
         .onChange(of: model.mainWindowDismissRequestID) { _, requestID in
             guard requestID > 0 else { return }
             dismissWindow(id: "main")
         }
+    }
+
+    private func openMainWindowIfNeeded(for requestID: Int) {
+        guard model.claimMainWindowOpenRequest(requestID) else { return }
+        openWindow(id: "main")
+        NSApp.activate(ignoringOtherApps: true)
     }
 }

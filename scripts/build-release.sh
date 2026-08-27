@@ -41,6 +41,39 @@ die() {
     exit 1
 }
 
+verify_image_document_registration() {
+    local plist_path="$1"
+    local label="$2"
+    local document_type_count
+    local document_type_entry
+    local type_name
+    local role
+    local rank
+    local content_type_count
+    local content_type
+    local has_document_class=false
+
+    document_type_count="$(plutil -extract CFBundleDocumentTypes raw -expect array -o - "$plist_path" 2>/dev/null || true)"
+    document_type_entry="$(plutil -extract CFBundleDocumentTypes.0 raw -expect dictionary -o - "$plist_path" 2>/dev/null || true)"
+    type_name="$(plutil -extract CFBundleDocumentTypes.0.CFBundleTypeName raw -expect string -o - "$plist_path" 2>/dev/null || true)"
+    role="$(plutil -extract CFBundleDocumentTypes.0.CFBundleTypeRole raw -expect string -o - "$plist_path" 2>/dev/null || true)"
+    rank="$(plutil -extract CFBundleDocumentTypes.0.LSHandlerRank raw -expect string -o - "$plist_path" 2>/dev/null || true)"
+    content_type_count="$(plutil -extract CFBundleDocumentTypes.0.LSItemContentTypes raw -expect array -o - "$plist_path" 2>/dev/null || true)"
+    content_type="$(plutil -extract CFBundleDocumentTypes.0.LSItemContentTypes.0 raw -expect string -o - "$plist_path" 2>/dev/null || true)"
+    if plutil -extract CFBundleDocumentTypes.0.NSDocumentClass xml1 -o - "$plist_path" >/dev/null 2>&1; then
+        has_document_class=true
+    fi
+
+    [[ "$document_type_count" == "1" ]] || die "$label must contain exactly one CFBundleDocumentTypes entry"
+    [[ -n "$document_type_entry" ]] || die "$label document type must be a dictionary"
+    [[ "$type_name" == "图片" ]] || die "$label must name its single document type 图片"
+    [[ "$role" == "Viewer" ]] || die "$label must register images with CFBundleTypeRole=Viewer"
+    [[ "$rank" == "Alternate" ]] || die "$label must register images with LSHandlerRank=Alternate"
+    [[ "$content_type_count" == "1" ]] || die "$label must contain exactly one image content type"
+    [[ "$content_type" == "public.image" ]] || die "$label must register public.image"
+    [[ "$has_document_class" == false ]] || die "$label must deliver image URLs through NSApplicationDelegate"
+}
+
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --skip-notarization)
@@ -77,6 +110,7 @@ BACKGROUND_ONLY="$(plutil -extract LSBackgroundOnly raw -expect bool -o - "$INFO
 [[ "$ICON_DECLARATION" == "AppIcon.icns" ]] || die "Info.plist must declare CFBundleIconFile=AppIcon.icns"
 [[ "$AGENT_APP" == "true" ]] || die "Info.plist must declare LSUIElement=true as a Boolean"
 [[ "$BACKGROUND_ONLY" != "true" ]] || die "Info.plist must not declare LSBackgroundOnly=true"
+verify_image_document_registration "$INFO_PLIST" "source Info.plist"
 PACKAGE_VERSION="$VERSION.$BUILD_NUMBER"
 
 APPLICATION_IDENTITY="${CROSSTOOL_APPLICATION_IDENTITY:-$DEFAULT_APPLICATION_IDENTITY}"
@@ -159,6 +193,7 @@ BUILT_ICON_DECLARATION="$(plutil -extract CFBundleIconFile raw -o - "$CONTENTS_D
 [[ "$BUILT_ICON_DECLARATION" == "AppIcon.icns" ]] || die "built app Info.plist has an unexpected CFBundleIconFile"
 BUILT_AGENT_APP="$(plutil -extract LSUIElement raw -expect bool -o - "$CONTENTS_DIR/Info.plist" 2>/dev/null || true)"
 [[ "$BUILT_AGENT_APP" == "true" ]] || die "built app Info.plist does not declare LSUIElement=true"
+verify_image_document_registration "$CONTENTS_DIR/Info.plist" "built app Info.plist"
 for arch in "${ARCHS[@]}"; do
     lipo "$MACOS_DIR/$EXECUTABLE_NAME" -verify_arch "$arch"
 done
@@ -201,6 +236,7 @@ PKG_ROOT="$STAGING_DIR/pkg-root"
 COMPONENT_PLIST="$STAGING_DIR/components.plist"
 EXPANDED_PKG="$STAGING_DIR/expanded-pkg"
 EXPANDED_FULL_PKG="$STAGING_DIR/expanded-full-pkg"
+FINAL_EXPANDED_FULL_PKG="$STAGING_DIR/final-expanded-full-pkg"
 ZIP_VERIFY_DIR="$STAGING_DIR/zip-verify"
 STAGED_INSTALLER_SCRIPTS="$STAGING_DIR/installer-scripts"
 
@@ -231,6 +267,7 @@ ZIP_ICON_DECLARATION="$(plutil -extract CFBundleIconFile raw -o - "$ZIP_APP/Cont
 [[ "$ZIP_ICON_DECLARATION" == "AppIcon.icns" ]] || die "ZIP payload Info.plist has an unexpected CFBundleIconFile"
 ZIP_AGENT_APP="$(plutil -extract LSUIElement raw -expect bool -o - "$ZIP_APP/Contents/Info.plist" 2>/dev/null || true)"
 [[ "$ZIP_AGENT_APP" == "true" ]] || die "ZIP payload Info.plist does not declare LSUIElement=true"
+verify_image_document_registration "$ZIP_APP/Contents/Info.plist" "ZIP payload Info.plist"
 
 echo "Creating drag-to-Applications DMG..."
 mkdir -p "$DMG_ROOT" "$DMG_MOUNT_DIR"
@@ -284,6 +321,7 @@ DMG_AGENT_APP="$(plutil -extract LSUIElement raw -expect bool -o - "$DMG_INFO_PL
 [[ "$DMG_ICON_DECLARATION" == "AppIcon.icns" ]] \
     || die "DMG app Info.plist has an unexpected CFBundleIconFile"
 [[ "$DMG_AGENT_APP" == "true" ]] || die "DMG app Info.plist does not declare LSUIElement=true"
+verify_image_document_registration "$DMG_INFO_PLIST" "DMG app Info.plist"
 [[ -f "$DMG_APP/Contents/Resources/AppIcon.icns" ]] || die "DMG app is missing AppIcon.icns"
 cmp -s "$ICON_SOURCE" "$DMG_APP/Contents/Resources/AppIcon.icns" \
     || die "DMG app icon differs from source icon"
@@ -357,6 +395,9 @@ if [[ "$SKIP_NOTARIZATION" == false ]]; then
         || die "stapled DMG root is missing the Applications symlink"
     [[ "$(readlink "$DMG_MOUNT_DIR/Applications")" == "/Applications" ]] \
         || die "stapled DMG Applications symlink does not target /Applications"
+    STAPLED_DMG_INFO_PLIST="$DMG_MOUNT_DIR/$APP_BUNDLE_NAME.app/Contents/Info.plist"
+    [[ -f "$STAPLED_DMG_INFO_PLIST" ]] || die "stapled DMG app is missing Contents/Info.plist"
+    verify_image_document_registration "$STAPLED_DMG_INFO_PLIST" "stapled DMG app Info.plist"
     hdiutil detach -quiet "$DMG_MOUNT_DIR"
     DMG_MOUNTED=false
 
@@ -433,6 +474,7 @@ PKG_ICON_DECLARATION="$(plutil -extract CFBundleIconFile raw -o - "$PKG_EXPANDED
 [[ "$PKG_ICON_DECLARATION" == "AppIcon.icns" ]] || die "PKG payload Info.plist has an unexpected CFBundleIconFile"
 PKG_AGENT_APP="$(plutil -extract LSUIElement raw -expect bool -o - "$PKG_EXPANDED_INFO" 2>/dev/null || true)"
 [[ "$PKG_AGENT_APP" == "true" ]] || die "PKG payload Info.plist does not declare LSUIElement=true"
+verify_image_document_registration "$PKG_EXPANDED_INFO" "PKG payload Info.plist"
 
 if [[ "$SKIP_NOTARIZATION" == false ]]; then
     echo "Submitting PKG to Apple notary service..."
@@ -443,6 +485,11 @@ if [[ "$SKIP_NOTARIZATION" == false ]]; then
     xcrun stapler staple -q "$PKG_PATH"
     xcrun stapler validate -q "$PKG_PATH"
     spctl --assess --type install --verbose=4 "$PKG_PATH"
+
+    pkgutil --expand-full "$PKG_PATH" "$FINAL_EXPANDED_FULL_PKG"
+    FINAL_PKG_INFO="$(find "$FINAL_EXPANDED_FULL_PKG" -type f -path "*/$APP_BUNDLE_NAME.app/Contents/Info.plist" -print -quit)"
+    [[ -n "$FINAL_PKG_INFO" ]] || die "stapled PKG payload has no Crosio.app Info.plist"
+    verify_image_document_registration "$FINAL_PKG_INFO" "stapled PKG payload Info.plist"
 fi
 
 (

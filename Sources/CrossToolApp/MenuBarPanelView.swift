@@ -270,6 +270,12 @@ private struct RecordingMenuSection: View {
                 ) {
                     appModel.presentTextTranslation()
                 }
+                MenuActionButton(
+                    title: "图片压缩",
+                    systemImage: "photo.badge.arrow.down"
+                ) {
+                    appModel.presentImageCompression()
+                }
             }
         }
     }

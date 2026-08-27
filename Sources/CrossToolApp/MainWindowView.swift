@@ -6,6 +6,7 @@ import UniformTypeIdentifiers
 enum SidebarDestination: String, CaseIterable, Identifiable {
     case home
     case screenshot
+    case imageCompression
     case recording
     case colorSampler
     case translation
@@ -20,6 +21,7 @@ enum SidebarDestination: String, CaseIterable, Identifiable {
         switch self {
         case .home: return "首页"
         case .screenshot: return "截图"
+        case .imageCompression: return "图片压缩"
         case .recording: return "录屏"
         case .colorSampler: return "提取颜色"
         case .translation: return "翻译"
@@ -34,6 +36,7 @@ enum SidebarDestination: String, CaseIterable, Identifiable {
         switch self {
         case .home: return "house"
         case .screenshot: return "camera.viewfinder"
+        case .imageCompression: return "photo.badge.arrow.down"
         case .recording: return "record.circle"
         case .colorSampler: return "eyedropper"
         case .translation: return "bubble.left.and.bubble.right"
@@ -91,6 +94,8 @@ struct MainWindowView: View {
             DashboardView()
         case .screenshot:
             ScreenshotPage()
+        case .imageCompression:
+            ImageCompressionPage(model: model.imageCompression)
         case .recording:
             ScreenRecordingPage(model: model.screenRecording) { url in
                 model.shareRecording(url)
@@ -154,6 +159,12 @@ private struct DashboardView: View {
                         subtitle: "全局快捷键 \(model.shortcutLabel(for: .region))",
                         systemImage: "viewfinder"
                     ) { model.capture(.region) }
+
+                    QuickActionCard(
+                        title: "图片压缩",
+                        subtitle: "本机智能压缩，不上传图片",
+                        systemImage: "photo.badge.arrow.down"
+                    ) { model.presentImageCompression() }
 
                     RecordingQuickActionCard(
                         model: model.screenRecording,
