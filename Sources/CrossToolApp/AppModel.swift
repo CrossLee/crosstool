@@ -257,8 +257,8 @@ final class AppModel: ObservableObject {
     }
 
     func presentImageCompression(importing urls: [URL]) {
-        imageCompression.addImages(urls)
         presentImageCompression()
+        imageCompression.addImagesFromExternalOpen(urls)
     }
 
     func claimMainWindowOpenRequest(_ requestID: Int) -> Bool {

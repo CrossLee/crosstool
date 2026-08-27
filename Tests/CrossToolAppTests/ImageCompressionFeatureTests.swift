@@ -303,8 +303,8 @@ struct ImageCompressionFeatureTests {
     }
 
     @MainActor
-    @Test("External image imports ignore duplicates and non-images")
-    func externalImageImportFiltering() throws {
+    @Test("Manual image imports ignore duplicates and non-images")
+    func manualImageImportFiltering() throws {
         let suiteName = "ImageCompressionFeatureTests.\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suiteName))
         defer { defaults.removePersistentDomain(forName: suiteName) }
@@ -333,10 +333,341 @@ struct ImageCompressionFeatureTests {
         #expect(model.runnableItemCount == 1)
     }
 
+    @MainActor
+    @Test("Manual additions stay pending and never reveal Finder automatically")
+    func manualAdditionDoesNotAutoCompress() async throws {
+        let fixture = try makeStubImage(named: "manual.png")
+        defer { try? FileManager.default.removeItem(at: fixture.deletingLastPathComponent()) }
+        let compressor = RecordingImageCompressor()
+        var revealBatches: [[URL]] = []
+        let model = try makeModel(service: compressor) { revealBatches.append($0) }
+
+        model.addImages([fixture])
+        await Task.yield()
+
+        #expect(compressor.calledURLs.isEmpty)
+        #expect(revealBatches.isEmpty)
+        #expect(model.items.count == 1)
+        #expect(model.items.first?.state == .pending)
+        #expect(!model.isCompressing)
+    }
+
+    @MainActor
+    @Test("Finder Open With compresses only its batch and reveals the result once")
+    func externalOpenAutoCompressesAndReveals() async throws {
+        let directory = try makeStubDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let manual = try makeStubImage(named: "manual.png", in: directory)
+        let external = try makeStubImage(named: "external.png", in: directory)
+        let compressor = RecordingImageCompressor()
+        var revealBatches: [[URL]] = []
+        let model = try makeModel(service: compressor) { revealBatches.append($0) }
+
+        model.addImages([manual])
+        model.addImagesFromExternalOpen([external, external])
+        await model.waitForCompressionToFinish()
+
+        #expect(compressor.calledURLs == [external])
+        #expect(model.items.count == 2)
+        #expect(model.items.first(where: { $0.sourceURL == manual })?.state == .pending)
+        let result = try completedResult(for: external, in: model)
+        #expect(revealBatches == [[result.outputURL]])
+    }
+
+    @MainActor
+    @Test("Finder requests received while compression is busy are queued")
+    func externalOpenWhileBusyIsQueued() async throws {
+        let directory = try makeStubDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let first = try makeStubImage(named: "first.png", in: directory)
+        let second = try makeStubImage(named: "second.png", in: directory)
+        let compressor = BlockingImageCompressor()
+        var revealBatches: [[URL]] = []
+        let model = try makeModel(service: compressor) { revealBatches.append($0) }
+
+        model.addImagesFromExternalOpen([first])
+        for _ in 0..<10_000 where compressor.calledURLs.isEmpty {
+            await Task.yield()
+        }
+        #expect(compressor.calledURLs == [first])
+
+        model.addImagesFromExternalOpen([second])
+        compressor.releaseFirstCall()
+        await model.waitForCompressionToFinish()
+
+        #expect(compressor.calledURLs == [first, second])
+        #expect(revealBatches.count == 2)
+        #expect(revealBatches[0] == [try completedResult(for: first, in: model).outputURL])
+        #expect(revealBatches[1] == [try completedResult(for: second, in: model).outputURL])
+    }
+
+    @MainActor
+    @Test("Reopening a failed item while the batch is busy queues a retry")
+    func failedItemCanBeRetriedBeforeItsBatchFinishes() async throws {
+        let directory = try makeStubDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let failedThenRetried = try makeStubImage(named: "retry.png", in: directory)
+        let blocking = try makeStubImage(named: "blocking.png", in: directory)
+        let compressor = RetryAfterFailureCompressor(
+            retryURL: failedThenRetried,
+            blockingURL: blocking
+        )
+        var revealBatches: [[URL]] = []
+        let model = try makeModel(service: compressor) { revealBatches.append($0) }
+
+        model.addImagesFromExternalOpen([failedThenRetried, blocking])
+        for _ in 0..<10_000 where compressor.calledURLs.count < 2 {
+            await Task.yield()
+        }
+        #expect(compressor.calledURLs == [failedThenRetried, blocking])
+
+        model.addImagesFromExternalOpen([failedThenRetried])
+        compressor.releaseBlockingCall()
+        await model.waitForCompressionToFinish()
+
+        #expect(compressor.calledURLs == [failedThenRetried, blocking, failedThenRetried])
+        #expect(revealBatches.count == 2)
+        if revealBatches.count == 2 {
+            #expect(revealBatches[0] == [try completedResult(for: blocking, in: model).outputURL])
+            #expect(revealBatches[1] == [try completedResult(for: failedThenRetried, in: model).outputURL])
+        }
+    }
+
+    @MainActor
+    @Test("Opening the same path again recompresses the current source")
+    func repeatedExternalOpenRecompressesCurrentSource() async throws {
+        let fixture = try makeStubImage(named: "repeat.png")
+        defer { try? FileManager.default.removeItem(at: fixture.deletingLastPathComponent()) }
+        let compressor = RecordingImageCompressor()
+        var revealBatches: [[URL]] = []
+        let model = try makeModel(service: compressor) { revealBatches.append($0) }
+
+        model.addImagesFromExternalOpen([fixture])
+        await model.waitForCompressionToFinish()
+        let firstResult = try completedResult(for: fixture, in: model)
+
+        model.addImagesFromExternalOpen([fixture])
+        await model.waitForCompressionToFinish()
+        let secondResult = try completedResult(for: fixture, in: model)
+
+        #expect(compressor.calledURLs == [fixture, fixture])
+        #expect(secondResult.outputURL != firstResult.outputURL)
+        #expect(revealBatches == [[firstResult.outputURL], [secondResult.outputURL]])
+        #expect(model.items.count == 1)
+    }
+
+    @MainActor
+    @Test("Failed or already optimized external images do not open Finder")
+    func nonOutputExternalOutcomesDoNotReveal() async throws {
+        let directory = try makeStubDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let failed = try makeStubImage(named: "failed.png", in: directory)
+        let optimized = try makeStubImage(named: "optimized.png", in: directory)
+        let compressor = RecordingImageCompressor(behaviors: [
+            failed.lastPathComponent: .failure,
+            optimized.lastPathComponent: .alreadyOptimized,
+        ])
+        var revealBatches: [[URL]] = []
+        let model = try makeModel(service: compressor) { revealBatches.append($0) }
+
+        model.addImagesFromExternalOpen([failed, optimized])
+        await model.waitForCompressionToFinish()
+
+        #expect(revealBatches.isEmpty)
+        guard case .failed = model.items.first(where: { $0.sourceURL == failed })?.state else {
+            Issue.record("The failed external image should remain visible as failed")
+            return
+        }
+        guard case .alreadyOptimized = model.items.first(where: { $0.sourceURL == optimized })?.state else {
+            Issue.record("The already optimized image should not produce a Finder result")
+            return
+        }
+    }
+
     @Test("The feature is available from the main sidebar")
     func sidebarDestinationContract() {
         #expect(SidebarDestination.allCases.contains(.imageCompression))
         #expect(SidebarDestination.imageCompression.title == "图片压缩")
         #expect(SidebarDestination.imageCompression.systemImage == "photo.badge.arrow.down")
+    }
+
+    @MainActor
+    private func makeModel(
+        service: any ImageCompressing,
+        revealFiles: @escaping ImageCompressionFeatureModel.FileRevealHandler
+    ) throws -> ImageCompressionFeatureModel {
+        let suiteName = "ImageCompressionFeatureTests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defaults.removePersistentDomain(forName: suiteName)
+        return ImageCompressionFeatureModel(
+            defaults: defaults,
+            service: service,
+            revealFiles: revealFiles
+        )
+    }
+
+    private func makeStubDirectory() throws -> URL {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("crosio-external-open-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        return directory
+    }
+
+    private func makeStubImage(named name: String, in directory: URL? = nil) throws -> URL {
+        let directory = try directory ?? makeStubDirectory()
+        let image = directory.appendingPathComponent(name, isDirectory: false)
+        try Data("stub image \(name)".utf8).write(to: image)
+        return image
+    }
+
+    @MainActor
+    private func completedResult(
+        for sourceURL: URL,
+        in model: ImageCompressionFeatureModel
+    ) throws -> ImageCompressionResult {
+        let item = try #require(model.items.first(where: { $0.sourceURL == sourceURL }))
+        guard case .completed(let result) = item.state else {
+            Issue.record("Expected \(sourceURL.lastPathComponent) to be completed")
+            throw ImageCompressionTestError.expectedCompletedResult
+        }
+        return result
+    }
+}
+
+private enum ImageCompressionTestError: Error {
+    case expectedCompletedResult
+    case forcedFailure
+}
+
+private final class RecordingImageCompressor: ImageCompressing, @unchecked Sendable {
+    enum Behavior: Sendable {
+        case compressed
+        case alreadyOptimized
+        case failure
+    }
+
+    private let lock = NSLock()
+    private let behaviors: [String: Behavior]
+    private var calls: [URL] = []
+
+    init(behaviors: [String: Behavior] = [:]) {
+        self.behaviors = behaviors
+    }
+
+    var calledURLs: [URL] {
+        lock.withLock { calls }
+    }
+
+    func compress(
+        sourceURL: URL,
+        settings: ImageCompressionSettings
+    ) throws -> ImageCompressionOutcome {
+        lock.withLock { calls.append(sourceURL) }
+        switch behaviors[sourceURL.lastPathComponent] ?? .compressed {
+        case .compressed:
+            return try Self.makeCompressedOutcome(for: sourceURL)
+        case .alreadyOptimized:
+            return .alreadyOptimized(originalBytes: 1_024)
+        case .failure:
+            throw ImageCompressionTestError.forcedFailure
+        }
+    }
+
+    fileprivate static func makeCompressedOutcome(
+        for sourceURL: URL
+    ) throws -> ImageCompressionOutcome {
+        let outputURL = ImageCompressionService.uniqueOutputURL(for: sourceURL, format: .jpeg)
+        try Data("compressed \(sourceURL.lastPathComponent)".utf8).write(to: outputURL)
+        return .compressed(ImageCompressionResult(
+            sourceURL: sourceURL,
+            outputURL: outputURL,
+            originalBytes: 1_024,
+            compressedBytes: 256,
+            pixelWidth: 100,
+            pixelHeight: 100,
+            outputFormat: .jpeg,
+            metTargetSize: true
+        ))
+    }
+}
+
+private final class BlockingImageCompressor: ImageCompressing, @unchecked Sendable {
+    private let condition = NSCondition()
+    private var calls: [URL] = []
+    private var firstCallReleased = false
+
+    var calledURLs: [URL] {
+        condition.withLock { calls }
+    }
+
+    func releaseFirstCall() {
+        condition.withLock {
+            firstCallReleased = true
+            condition.broadcast()
+        }
+    }
+
+    func compress(
+        sourceURL: URL,
+        settings: ImageCompressionSettings
+    ) throws -> ImageCompressionOutcome {
+        condition.lock()
+        calls.append(sourceURL)
+        let shouldWait = calls.count == 1
+        while shouldWait, !firstCallReleased {
+            condition.wait()
+        }
+        condition.unlock()
+        return try RecordingImageCompressor.makeCompressedOutcome(for: sourceURL)
+    }
+}
+
+private final class RetryAfterFailureCompressor: ImageCompressing, @unchecked Sendable {
+    private let condition = NSCondition()
+    private let retryURL: URL
+    private let blockingURL: URL
+    private var calls: [URL] = []
+    private var blockingCallReleased = false
+    private var retryAttemptCount = 0
+
+    init(retryURL: URL, blockingURL: URL) {
+        self.retryURL = retryURL
+        self.blockingURL = blockingURL
+    }
+
+    var calledURLs: [URL] {
+        condition.withLock { calls }
+    }
+
+    func releaseBlockingCall() {
+        condition.withLock {
+            blockingCallReleased = true
+            condition.broadcast()
+        }
+    }
+
+    func compress(
+        sourceURL: URL,
+        settings: ImageCompressionSettings
+    ) throws -> ImageCompressionOutcome {
+        condition.lock()
+        calls.append(sourceURL)
+        if sourceURL == retryURL {
+            retryAttemptCount += 1
+            let shouldFail = retryAttemptCount == 1
+            condition.unlock()
+            if shouldFail {
+                throw ImageCompressionTestError.forcedFailure
+            }
+            return try RecordingImageCompressor.makeCompressedOutcome(for: sourceURL)
+        }
+
+        if sourceURL == blockingURL {
+            while !blockingCallReleased {
+                condition.wait()
+            }
+        }
+        condition.unlock()
+        return try RecordingImageCompressor.makeCompressedOutcome(for: sourceURL)
     }
 }

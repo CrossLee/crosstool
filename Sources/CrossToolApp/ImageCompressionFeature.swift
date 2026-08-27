@@ -199,7 +199,14 @@ enum ImageCompressionError: LocalizedError, Equatable {
     }
 }
 
-struct ImageCompressionService: Sendable {
+protocol ImageCompressing: Sendable {
+    func compress(
+        sourceURL: URL,
+        settings: ImageCompressionSettings
+    ) throws -> ImageCompressionOutcome
+}
+
+struct ImageCompressionService: ImageCompressing, Sendable {
     static let maximumPixelDimension = 32_768
     static let maximumPixelCount: Int64 = 50_000_000
     static let minimumAutomaticPixelDimension = 960
@@ -822,7 +829,7 @@ enum ImageCompressionItemState: Equatable, Sendable {
 struct ImageCompressionItem: Identifiable, Equatable, Sendable {
     let id: UUID
     let sourceURL: URL
-    let originalBytes: Int64
+    var originalBytes: Int64
     var state: ImageCompressionItemState
 }
 
@@ -834,6 +841,8 @@ private enum ImageCompressionWorkerResult: Sendable {
 
 @MainActor
 final class ImageCompressionFeatureModel: ObservableObject {
+    typealias FileRevealHandler = @MainActor ([URL]) -> Void
+
     @Published var outputFormat: ImageCompressionOutputFormat {
         didSet {
             defaults.set(outputFormat.rawValue, forKey: Self.outputFormatKey)
@@ -867,15 +876,30 @@ final class ImageCompressionFeatureModel: ObservableObject {
     private static let dimensionLimitKey = "imageCompression.dimensionLimit.v1"
 
     private let defaults: UserDefaults
-    private let service: ImageCompressionService
+    private let service: any ImageCompressing
+    private let revealFiles: FileRevealHandler
     private var compressionTask: Task<Void, Never>?
+    private var queuedAutomaticItemIDs: [UUID] = []
+    private var activeCompressionItemIDs: Set<UUID> = []
+    private var activeRevealItemIDs: Set<UUID> = []
 
     init(
         defaults: UserDefaults = .standard,
-        service: ImageCompressionService = ImageCompressionService()
+        service: any ImageCompressing = ImageCompressionService(),
+        revealFiles: @escaping FileRevealHandler = { urls in
+            let grouped = Dictionary(grouping: urls) {
+                $0.deletingLastPathComponent().standardizedFileURL
+            }
+            for directory in grouped.keys.sorted(by: { $0.path < $1.path }) {
+                if let files = grouped[directory] {
+                    NSWorkspace.shared.activateFileViewerSelecting(files)
+                }
+            }
+        }
     ) {
         self.defaults = defaults
         self.service = service
+        self.revealFiles = revealFiles
 
         if let rawFormat = defaults.string(forKey: Self.outputFormatKey),
            let format = ImageCompressionOutputFormat(rawValue: rawFormat),
@@ -901,44 +925,89 @@ final class ImageCompressionFeatureModel: ObservableObject {
     }
 
     func addImages(_ urls: [URL]) {
+        _ = importImages(urls, reusingExistingItems: false)
+    }
+
+    func addImagesFromExternalOpen(_ urls: [URL]) {
+        let itemIDs = importImages(urls, reusingExistingItems: true)
+        guard !itemIDs.isEmpty else { return }
+
+        for itemID in itemIDs {
+            if activeCompressionItemIDs.contains(itemID) {
+                activeRevealItemIDs.insert(itemID)
+            } else if !queuedAutomaticItemIDs.contains(itemID) {
+                queuedAutomaticItemIDs.append(itemID)
+            }
+        }
+        startNextAutomaticCompressionIfNeeded()
+    }
+
+    @discardableResult
+    private func importImages(
+        _ urls: [URL],
+        reusingExistingItems: Bool
+    ) -> [UUID] {
         var added = 0
+        var reused = 0
         var rejected = 0
-        let existing = Set(items.map { $0.sourceURL.standardizedFileURL })
-        var seen = existing
+        var acceptedItemIDs: [UUID] = []
+        var seenInRequest: Set<URL> = []
 
         for url in urls {
             let standardized = url.standardizedFileURL
-            guard !seen.contains(standardized), Self.looksLikeImage(url) else {
+            guard seenInRequest.insert(standardized).inserted,
+                  Self.looksLikeImage(url) else {
                 rejected += 1
                 continue
             }
 
-            let isAccessing = url.startAccessingSecurityScopedResource()
-            let attributes = try? FileManager.default.attributesOfItem(atPath: url.path)
-            if isAccessing {
-                url.stopAccessingSecurityScopedResource()
+            if let existingIndex = items.firstIndex(where: {
+                $0.sourceURL.standardizedFileURL == standardized
+            }) {
+                guard reusingExistingItems else {
+                    rejected += 1
+                    continue
+                }
+
+                switch items[existingIndex].state {
+                case .completed, .alreadyOptimized:
+                    items[existingIndex].state = .pending
+                case .pending, .compressing, .failed:
+                    break
+                }
+                if let byteCount = Self.byteCount(of: url) {
+                    items[existingIndex].originalBytes = byteCount
+                }
+                acceptedItemIDs.append(items[existingIndex].id)
+                reused += 1
+                continue
             }
-            guard let byteCount = (attributes?[.size] as? NSNumber)?.int64Value,
-                  byteCount > 0 else {
+
+            guard let byteCount = Self.byteCount(of: url) else {
                 rejected += 1
                 continue
             }
 
-            seen.insert(standardized)
-            items.append(ImageCompressionItem(
+            let item = ImageCompressionItem(
                 id: UUID(),
                 sourceURL: url,
                 originalBytes: byteCount,
                 state: .pending
-            ))
+            )
+            items.append(item)
+            acceptedItemIDs.append(item.id)
             added += 1
         }
 
-        if added > 0 {
+        let acceptedCount = added + reused
+        if reusingExistingItems, acceptedCount > 0 {
+            statusMessage = "已接收 \(acceptedCount) 张图片，将自动压缩并在完成后打开输出目录"
+        } else if added > 0 {
             statusMessage = "已添加 \(added) 张图片，压缩结果会保存到原文件夹且不覆盖原图"
         } else if rejected > 0 {
             statusMessage = "没有添加新图片；请拖入 JPEG、PNG、HEIC、TIFF 或 WebP 等静态图片"
         }
+        return acceptedItemIDs
     }
 
     func reportImporterError(_ error: Error) {
@@ -948,6 +1017,34 @@ final class ImageCompressionFeatureModel: ObservableObject {
     func compressAll() {
         guard canCompress else { return }
         let itemIDs = items.filter { $0.state.isRunnable }.map(\.id)
+        startCompression(itemIDs: itemIDs, revealItemIDs: [])
+    }
+
+    func waitForCompressionToFinish() async {
+        while true {
+            if let compressionTask {
+                await compressionTask.value
+                continue
+            }
+            guard isCompressing || !queuedAutomaticItemIDs.isEmpty else { return }
+            await Task.yield()
+        }
+    }
+
+    private func startCompression(
+        itemIDs: [UUID],
+        revealItemIDs: [UUID]
+    ) {
+        guard !isCompressing else { return }
+        let runnableItemIDs = itemIDs.filter { itemID in
+            items.first(where: { $0.id == itemID })?.state.isRunnable == true
+        }
+        guard !runnableItemIDs.isEmpty else {
+            revealCompletedItems(revealItemIDs)
+            startNextAutomaticCompressionIfNeeded()
+            return
+        }
+
         let settings = ImageCompressionSettings(
             outputFormat: outputFormat,
             targetBytes: targetSize.rawValue,
@@ -955,14 +1052,18 @@ final class ImageCompressionFeatureModel: ObservableObject {
         )
         let service = service
 
+        activeCompressionItemIDs = Set(runnableItemIDs)
+        activeRevealItemIDs = Set(revealItemIDs)
         isCompressing = true
-        statusMessage = "正在本地压缩 0/\(itemIDs.count)…"
+        statusMessage = revealItemIDs.isEmpty
+            ? "正在本地压缩 0/\(runnableItemIDs.count)…"
+            : "正在自动压缩 0/\(runnableItemIDs.count)…"
 
         compressionTask = Task { [weak self] in
             guard let self else { return }
             var finished = 0
 
-            for itemID in itemIDs {
+            for itemID in runnableItemIDs {
                 if Task.isCancelled { break }
                 guard let index = items.firstIndex(where: { $0.id == itemID }) else { continue }
                 let sourceURL = items[index].sourceURL
@@ -998,21 +1099,57 @@ final class ImageCompressionFeatureModel: ObservableObject {
                 case .cancelled:
                     items[refreshedIndex].state = .pending
                 }
+                activeCompressionItemIDs.remove(itemID)
 
                 finished += 1
-                statusMessage = "正在本地压缩 \(finished)/\(itemIDs.count)…"
+                statusMessage = revealItemIDs.isEmpty
+                    ? "正在本地压缩 \(finished)/\(runnableItemIDs.count)…"
+                    : "正在自动压缩 \(finished)/\(runnableItemIDs.count)…"
             }
 
+            let wasCancelled = Task.isCancelled
+            let completedRevealItemIDs = Array(activeRevealItemIDs)
             isCompressing = false
             compressionTask = nil
-            statusMessage = Task.isCancelled
+            activeCompressionItemIDs = []
+            activeRevealItemIDs = []
+            statusMessage = wasCancelled
                 ? "已停止压缩，尚未处理的图片仍在列表中"
                 : "处理完成；原图未修改，结果已保存到各自原文件夹"
+            if !wasCancelled {
+                revealCompletedItems(completedRevealItemIDs)
+            }
+            startNextAutomaticCompressionIfNeeded()
         }
+    }
+
+    private func startNextAutomaticCompressionIfNeeded() {
+        guard !isCompressing, !queuedAutomaticItemIDs.isEmpty else { return }
+        let itemIDs = queuedAutomaticItemIDs
+        queuedAutomaticItemIDs.removeAll()
+        startCompression(itemIDs: itemIDs, revealItemIDs: itemIDs)
+    }
+
+    private func revealCompletedItems(_ itemIDs: [UUID]) {
+        var seen: Set<URL> = []
+        let outputURLs = itemIDs.compactMap { itemID -> URL? in
+            guard let item = items.first(where: { $0.id == itemID }),
+                  case .completed(let result) = item.state else {
+                return nil
+            }
+            let standardized = result.outputURL.standardizedFileURL
+            guard seen.insert(standardized).inserted else { return nil }
+            return result.outputURL
+        }
+        guard !outputURLs.isEmpty else { return }
+        revealFiles(outputURLs)
     }
 
     func cancelCompression() {
         guard isCompressing else { return }
+        queuedAutomaticItemIDs.removeAll()
+        activeCompressionItemIDs = []
+        activeRevealItemIDs = []
         compressionTask?.cancel()
         statusMessage = "正在停止…"
     }
@@ -1032,7 +1169,7 @@ final class ImageCompressionFeatureModel: ObservableObject {
     }
 
     func reveal(_ result: ImageCompressionResult) {
-        NSWorkspace.shared.activateFileViewerSelecting([result.outputURL])
+        revealFiles([result.outputURL])
     }
 
     func open(_ result: ImageCompressionResult) {
@@ -1067,6 +1204,21 @@ final class ImageCompressionFeatureModel: ObservableObject {
         guard let type = UTType(filenameExtension: url.pathExtension) else { return false }
         return type.conforms(to: .image)
     }
+
+    private static func byteCount(of url: URL) -> Int64? {
+        let isAccessing = url.startAccessingSecurityScopedResource()
+        defer {
+            if isAccessing {
+                url.stopAccessingSecurityScopedResource()
+            }
+        }
+        let attributes = try? FileManager.default.attributesOfItem(atPath: url.path)
+        guard let byteCount = (attributes?[.size] as? NSNumber)?.int64Value,
+              byteCount > 0 else {
+            return nil
+        }
+        return byteCount
+    }
 }
 
 @MainActor
@@ -1084,7 +1236,7 @@ struct ImageCompressionPage: View {
             VStack(alignment: .leading, spacing: 22) {
                 PageHeader(
                     title: "图片压缩",
-                    subtitle: "在 Mac 本地智能缩小图片体积，可按目标大小批量处理，原图不会被覆盖"
+                    subtitle: "应用内支持批量处理；Finder 右键用 Crosio 打开会自动压缩并定位结果，原图不会被覆盖"
                 )
 
                 privacyBanner
