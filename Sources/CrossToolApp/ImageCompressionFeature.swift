@@ -102,18 +102,21 @@ struct ImageCompressionSettings: Equatable, Sendable {
     var outputFormat: ImageCompressionOutputFormat
     var targetBytes: Int
     var dimensionLimit: ImageCompressionDimensionLimit
+    var preservesSourceFormat: Bool = false
 }
 
 enum ImageCompressionResolvedFormat: String, Equatable, Sendable {
     case jpeg
     case heic
     case png
+    case tiff
 
     var title: String {
         switch self {
         case .jpeg: return "JPEG"
         case .heic: return "HEIC"
         case .png: return "PNG"
+        case .tiff: return "TIFF"
         }
     }
 
@@ -122,6 +125,7 @@ enum ImageCompressionResolvedFormat: String, Equatable, Sendable {
         case .jpeg: return "jpg"
         case .heic: return "heic"
         case .png: return "png"
+        case .tiff: return "tiff"
         }
     }
 
@@ -130,11 +134,30 @@ enum ImageCompressionResolvedFormat: String, Equatable, Sendable {
         case .jpeg: return UTType.jpeg.identifier
         case .heic: return UTType.heic.identifier
         case .png: return UTType.png.identifier
+        case .tiff: return UTType.tiff.identifier
         }
     }
 
     var isLossy: Bool {
-        self != .png
+        switch self {
+        case .jpeg, .heic:
+            return true
+        case .png, .tiff:
+            return false
+        }
+    }
+
+    func accepts(fileExtension: String) -> Bool {
+        switch self {
+        case .jpeg:
+            return ["jpg", "jpeg", "jpe", "jfif"].contains(fileExtension.lowercased())
+        case .heic:
+            return fileExtension.lowercased() == "heic"
+        case .png:
+            return fileExtension.lowercased() == "png"
+        case .tiff:
+            return ["tif", "tiff"].contains(fileExtension.lowercased())
+        }
     }
 }
 
@@ -172,6 +195,7 @@ enum ImageCompressionError: LocalizedError, Equatable {
     case imageTooLarge
     case decodingFailed
     case outputFormatUnavailable(String)
+    case sourceFormatCannotBePreserved(String)
     case encodingFailed(String)
     case cannotWriteOutput
 
@@ -191,6 +215,8 @@ enum ImageCompressionError: LocalizedError, Equatable {
             return "图片解码失败，文件可能已损坏"
         case .outputFormatUnavailable(let format):
             return "当前 macOS 无法写入 \(format) 图片"
+        case .sourceFormatCannotBePreserved(let format):
+            return "当前 macOS 无法在不改变格式的情况下压缩 \(format) 图片"
         case .encodingFailed(let format):
             return "\(format) 编码失败"
         case .cannotWriteOutput:
@@ -236,6 +262,38 @@ struct ImageCompressionService: ImageCompressing, Sendable {
         }
     }
 
+    static func preservedSourceFormat(
+        typeIdentifier: String?
+    ) -> ImageCompressionResolvedFormat? {
+        switch typeIdentifier {
+        case UTType.jpeg.identifier:
+            return .jpeg
+        case UTType.heic.identifier:
+            return .heic
+        case UTType.png.identifier:
+            return .png
+        case UTType.tiff.identifier:
+            return .tiff
+        default:
+            return nil
+        }
+    }
+
+    static func preservedFileExtension(
+        for sourceURL: URL,
+        format: ImageCompressionResolvedFormat
+    ) throws -> String {
+        let sourceExtension = sourceURL.pathExtension
+        guard !sourceExtension.isEmpty,
+              format.accepts(fileExtension: sourceExtension) else {
+            let label = sourceExtension.isEmpty
+                ? format.title
+                : sourceExtension.uppercased()
+            throw ImageCompressionError.sourceFormatCannotBePreserved(label)
+        }
+        return sourceExtension
+    }
+
     static func nextPixelLimit(
         current: Int,
         minimum: Int,
@@ -258,17 +316,19 @@ struct ImageCompressionService: ImageCompressing, Sendable {
     static func uniqueOutputURL(
         for sourceURL: URL,
         format: ImageCompressionResolvedFormat,
+        fileExtension: String? = nil,
         fileManager: FileManager = .default
     ) -> URL {
         let directory = sourceURL.deletingLastPathComponent()
         let stem = sourceURL.deletingPathExtension().lastPathComponent
+        let resolvedExtension = fileExtension ?? format.fileExtension
         var sequence = 1
 
         while true {
             let suffix = sequence == 1 ? "-crosio" : "-crosio-\(sequence)"
             let candidate = directory
                 .appendingPathComponent(stem + suffix, isDirectory: false)
-                .appendingPathExtension(format.fileExtension)
+                .appendingPathExtension(resolvedExtension)
             if !fileManager.fileExists(atPath: candidate.path) {
                 return candidate
             }
@@ -280,10 +340,12 @@ struct ImageCompressionService: ImageCompressing, Sendable {
         _ data: Data,
         for sourceURL: URL,
         format: ImageCompressionResolvedFormat,
+        fileExtension: String? = nil,
         fileManager: FileManager = .default
     ) throws -> URL {
         let directory = sourceURL.deletingLastPathComponent()
         let stem = sourceURL.deletingPathExtension().lastPathComponent
+        let resolvedExtension = fileExtension ?? format.fileExtension
         let temporaryURL = directory.appendingPathComponent(
             ".crosio-compression-\(UUID().uuidString).tmp",
             isDirectory: false
@@ -301,7 +363,7 @@ struct ImageCompressionService: ImageCompressing, Sendable {
             let suffix = sequence == 1 ? "-crosio" : "-crosio-\(sequence)"
             let candidate = directory
                 .appendingPathComponent(stem + suffix, isDirectory: false)
-                .appendingPathExtension(format.fileExtension)
+                .appendingPathExtension(resolvedExtension)
             switch try exclusiveMove(from: temporaryURL, to: candidate) {
             case .moved:
                 return candidate
@@ -437,7 +499,18 @@ struct ImageCompressionService: ImageCompressing, Sendable {
 
         let requestedFormat = explicitlyRequestedFormat(settings.outputFormat)
         let sourceType = CGImageSourceGetType(source) as String?
-        let requiresFormatChange = requestedFormat.map { $0.typeIdentifier != sourceType } ?? false
+        let preservedFormat = settings.preservesSourceFormat
+            ? Self.preservedSourceFormat(typeIdentifier: sourceType)
+            : nil
+        if settings.preservesSourceFormat, preservedFormat == nil {
+            let label = sourceURL.pathExtension.isEmpty
+                ? (sourceType ?? "这种格式")
+                : sourceURL.pathExtension.uppercased()
+            throw ImageCompressionError.sourceFormatCannotBePreserved(label)
+        }
+        let requiresFormatChange = settings.preservesSourceFormat
+            ? false
+            : requestedFormat.map { $0.typeIdentifier != sourceType } ?? false
         let requiresDimensionChange = initialLimit < sourceLongestEdge
         if originalData.count <= settings.targetBytes,
            !requiresFormatChange,
@@ -446,10 +519,15 @@ struct ImageCompressionService: ImageCompressing, Sendable {
         }
 
         let initialImage = try decodedImage(source: source, maximumPixelSize: initialLimit)
-        let outputFormat = Self.resolvedFormat(
+        let outputFormat = preservedFormat ?? Self.resolvedFormat(
             requested: settings.outputFormat,
             hasAlpha: Self.hasAlphaChannel(initialImage)
         )
+        let outputFileExtension = if settings.preservesSourceFormat {
+            try Self.preservedFileExtension(for: sourceURL, format: outputFormat)
+        } else {
+            outputFormat.fileExtension
+        }
         guard Self.canWrite(outputFormat) else {
             throw ImageCompressionError.outputFormatUnavailable(outputFormat.title)
         }
@@ -464,10 +542,11 @@ struct ImageCompressionService: ImageCompressing, Sendable {
                 allowsResize: settings.dimensionLimit.allowsTargetDrivenResize
             )
         } else {
-            try encodePNG(
+            try encodeLossless(
                 source: source,
                 initialImage: initialImage,
                 initialLimit: initialLimit,
+                format: outputFormat,
                 targetBytes: settings.targetBytes,
                 allowsResize: settings.dimensionLimit.allowsTargetDrivenResize
             )
@@ -492,7 +571,8 @@ struct ImageCompressionService: ImageCompressing, Sendable {
         let outputURL = try Self.writeOutputWithoutOverwriting(
             encoded.data,
             for: sourceURL,
-            format: outputFormat
+            format: outputFormat,
+            fileExtension: outputFileExtension
         )
 
         return .compressed(ImageCompressionResult(
@@ -611,10 +691,11 @@ struct ImageCompressionService: ImageCompressing, Sendable {
         return smallest
     }
 
-    private func encodePNG(
+    private func encodeLossless(
         source: CGImageSource,
         initialImage: CGImage,
         initialLimit: Int,
+        format: ImageCompressionResolvedFormat,
         targetBytes: Int,
         allowsResize: Bool
     ) throws -> EncodedImage {
@@ -626,7 +707,7 @@ struct ImageCompressionService: ImageCompressing, Sendable {
 
         for resizePass in 0...maximumResizePasses {
             try Task.checkCancellation()
-            let data = try encode(image: image, format: .png, quality: nil)
+            let data = try encode(image: image, format: format, quality: nil)
             let candidate = EncodedImage(
                 data: data,
                 width: image.width,
@@ -655,7 +736,7 @@ struct ImageCompressionService: ImageCompressing, Sendable {
         }
 
         guard let smallest else {
-            throw ImageCompressionError.encodingFailed(ImageCompressionResolvedFormat.png.title)
+            throw ImageCompressionError.encodingFailed(format.title)
         }
         return smallest
     }
@@ -882,6 +963,7 @@ final class ImageCompressionFeatureModel: ObservableObject {
     private var queuedAutomaticItemIDs: [UUID] = []
     private var activeCompressionItemIDs: Set<UUID> = []
     private var activeRevealItemIDs: Set<UUID> = []
+    private var activePreservesSourceFormat = false
 
     init(
         defaults: UserDefaults = .standard,
@@ -934,7 +1016,11 @@ final class ImageCompressionFeatureModel: ObservableObject {
 
         for itemID in itemIDs {
             if activeCompressionItemIDs.contains(itemID) {
-                activeRevealItemIDs.insert(itemID)
+                if activePreservesSourceFormat {
+                    activeRevealItemIDs.insert(itemID)
+                } else if !queuedAutomaticItemIDs.contains(itemID) {
+                    queuedAutomaticItemIDs.append(itemID)
+                }
             } else if !queuedAutomaticItemIDs.contains(itemID) {
                 queuedAutomaticItemIDs.append(itemID)
             }
@@ -1001,7 +1087,7 @@ final class ImageCompressionFeatureModel: ObservableObject {
 
         let acceptedCount = added + reused
         if reusingExistingItems, acceptedCount > 0 {
-            statusMessage = "已接收 \(acceptedCount) 张图片，将自动压缩并在完成后打开输出目录"
+            statusMessage = "已接收 \(acceptedCount) 张图片，将保持受支持的原格式自动压缩并定位结果"
         } else if added > 0 {
             statusMessage = "已添加 \(added) 张图片，压缩结果会保存到原文件夹且不覆盖原图"
         } else if rejected > 0 {
@@ -1017,7 +1103,11 @@ final class ImageCompressionFeatureModel: ObservableObject {
     func compressAll() {
         guard canCompress else { return }
         let itemIDs = items.filter { $0.state.isRunnable }.map(\.id)
-        startCompression(itemIDs: itemIDs, revealItemIDs: [])
+        startCompression(
+            itemIDs: itemIDs,
+            revealItemIDs: [],
+            preservesSourceFormat: false
+        )
     }
 
     func waitForCompressionToFinish() async {
@@ -1033,7 +1123,8 @@ final class ImageCompressionFeatureModel: ObservableObject {
 
     private func startCompression(
         itemIDs: [UUID],
-        revealItemIDs: [UUID]
+        revealItemIDs: [UUID],
+        preservesSourceFormat: Bool
     ) {
         guard !isCompressing else { return }
         let runnableItemIDs = itemIDs.filter { itemID in
@@ -1048,12 +1139,14 @@ final class ImageCompressionFeatureModel: ObservableObject {
         let settings = ImageCompressionSettings(
             outputFormat: outputFormat,
             targetBytes: targetSize.rawValue,
-            dimensionLimit: dimensionLimit
+            dimensionLimit: dimensionLimit,
+            preservesSourceFormat: preservesSourceFormat
         )
         let service = service
 
         activeCompressionItemIDs = Set(runnableItemIDs)
         activeRevealItemIDs = Set(revealItemIDs)
+        activePreservesSourceFormat = preservesSourceFormat
         isCompressing = true
         statusMessage = revealItemIDs.isEmpty
             ? "正在本地压缩 0/\(runnableItemIDs.count)…"
@@ -1113,6 +1206,7 @@ final class ImageCompressionFeatureModel: ObservableObject {
             compressionTask = nil
             activeCompressionItemIDs = []
             activeRevealItemIDs = []
+            activePreservesSourceFormat = false
             statusMessage = wasCancelled
                 ? "已停止压缩，尚未处理的图片仍在列表中"
                 : "处理完成；原图未修改，结果已保存到各自原文件夹"
@@ -1127,7 +1221,20 @@ final class ImageCompressionFeatureModel: ObservableObject {
         guard !isCompressing, !queuedAutomaticItemIDs.isEmpty else { return }
         let itemIDs = queuedAutomaticItemIDs
         queuedAutomaticItemIDs.removeAll()
-        startCompression(itemIDs: itemIDs, revealItemIDs: itemIDs)
+        for itemID in itemIDs {
+            guard let index = items.firstIndex(where: { $0.id == itemID }) else { continue }
+            switch items[index].state {
+            case .completed, .alreadyOptimized:
+                items[index].state = .pending
+            case .pending, .compressing, .failed:
+                break
+            }
+        }
+        startCompression(
+            itemIDs: itemIDs,
+            revealItemIDs: itemIDs,
+            preservesSourceFormat: true
+        )
     }
 
     private func revealCompletedItems(_ itemIDs: [UUID]) {
@@ -1150,6 +1257,7 @@ final class ImageCompressionFeatureModel: ObservableObject {
         queuedAutomaticItemIDs.removeAll()
         activeCompressionItemIDs = []
         activeRevealItemIDs = []
+        activePreservesSourceFormat = false
         compressionTask?.cancel()
         statusMessage = "正在停止…"
     }
@@ -1236,7 +1344,7 @@ struct ImageCompressionPage: View {
             VStack(alignment: .leading, spacing: 22) {
                 PageHeader(
                     title: "图片压缩",
-                    subtitle: "应用内支持批量处理；Finder 右键用 Crosio 打开会自动压缩并定位结果，原图不会被覆盖"
+                    subtitle: "应用内支持批量处理；Finder 右键打开 PNG、JPEG、HEIC、TIFF 会保持格式和后缀并定位结果"
                 )
 
                 privacyBanner

@@ -20,6 +20,43 @@ struct ImageCompressionFeatureTests {
             requested: .heic,
             hasAlpha: true
         ) == .heic)
+        #expect(ImageCompressionService.preservedSourceFormat(
+            typeIdentifier: UTType.jpeg.identifier
+        ) == .jpeg)
+        #expect(ImageCompressionService.preservedSourceFormat(
+            typeIdentifier: UTType.png.identifier
+        ) == .png)
+        #expect(ImageCompressionService.preservedSourceFormat(
+            typeIdentifier: UTType.heic.identifier
+        ) == .heic)
+        #expect(ImageCompressionService.preservedSourceFormat(
+            typeIdentifier: UTType.tiff.identifier
+        ) == .tiff)
+        #expect(ImageCompressionService.preservedSourceFormat(
+            typeIdentifier: UTType.webP.identifier
+        ) == nil)
+    }
+
+    @Test("Preserved output keeps the source extension exactly")
+    func preservedExtensionResolution() throws {
+        #expect(try ImageCompressionService.preservedFileExtension(
+            for: URL(fileURLWithPath: "/tmp/photo.JPEG"),
+            format: .jpeg
+        ) == "JPEG")
+        #expect(try ImageCompressionService.preservedFileExtension(
+            for: URL(fileURLWithPath: "/tmp/photo.JFIF"),
+            format: .jpeg
+        ) == "JFIF")
+        #expect(try ImageCompressionService.preservedFileExtension(
+            for: URL(fileURLWithPath: "/tmp/scan.TIF"),
+            format: .tiff
+        ) == "TIF")
+        #expect(throws: ImageCompressionError.sourceFormatCannotBePreserved("PNG")) {
+            try ImageCompressionService.preservedFileExtension(
+                for: URL(fileURLWithPath: "/tmp/mismatch.png"),
+                format: .jpeg
+            )
+        }
     }
 
     @Test("Target-driven resizing stays within the visual-quality floor")
@@ -241,6 +278,113 @@ struct ImageCompressionFeatureTests {
         #expect(CGImageSourceGetCount(imageSource) == 1)
     }
 
+    @Test("Preserving source format keeps PNG output as PNG")
+    func preservedPNGCompression() throws {
+        guard ImageCompressionService.canWrite(.png) else {
+            Issue.record("This macOS runtime must provide the ImageIO PNG encoder")
+            return
+        }
+
+        let projectRoot = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let fixture = projectRoot
+            .appendingPathComponent("Resources/Brand/CrosioIcon.png", isDirectory: false)
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("crosio-preserved-png-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let source = directory.appendingPathComponent("Screenshot.PNG")
+        try FileManager.default.copyItem(at: fixture, to: source)
+        let originalData = try Data(contentsOf: source)
+        let outcome = try ImageCompressionService().compress(
+            sourceURL: source,
+            settings: ImageCompressionSettings(
+                outputFormat: .heic,
+                targetBytes: 200_000,
+                dimensionLimit: .pixels1242,
+                preservesSourceFormat: true
+            )
+        )
+
+        guard case .compressed(let result) = outcome else {
+            Issue.record("The PNG fixture should produce a smaller same-format result")
+            return
+        }
+        #expect(result.outputURL.lastPathComponent == "Screenshot-crosio.PNG")
+        #expect(result.outputFormat == .png)
+        #expect(result.compressedBytes < result.originalBytes)
+        #expect(try Data(contentsOf: source) == originalData)
+
+        let outputData = try Data(contentsOf: result.outputURL)
+        let imageSource = try #require(CGImageSourceCreateWithData(outputData as CFData, nil))
+        #expect(CGImageSourceGetType(imageSource) as String? == UTType.png.identifier)
+        #expect(CGImageSourceGetCount(imageSource) == 1)
+    }
+
+    @Test("Preserving source format keeps JPEG content and suffix")
+    func preservedJPEGCompression() throws {
+        guard ImageCompressionService.canWrite(.jpeg) else {
+            Issue.record("This macOS runtime must provide the ImageIO JPEG encoder")
+            return
+        }
+
+        let projectRoot = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let fixture = projectRoot
+            .appendingPathComponent("Resources/Brand/CrosioIcon.png", isDirectory: false)
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("crosio-preserved-jpeg-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let initialSource = directory.appendingPathComponent("fixture.png")
+        try FileManager.default.copyItem(at: fixture, to: initialSource)
+        let initialOutcome = try ImageCompressionService().compress(
+            sourceURL: initialSource,
+            settings: ImageCompressionSettings(
+                outputFormat: .jpeg,
+                targetBytes: 300_000,
+                dimensionLimit: .pixels1242
+            )
+        )
+        guard case .compressed(let initialResult) = initialOutcome else {
+            Issue.record("The fixture should first produce a JPEG source")
+            return
+        }
+
+        let jpegSource = directory.appendingPathComponent("Photo.JFIF")
+        try FileManager.default.moveItem(at: initialResult.outputURL, to: jpegSource)
+        let originalJPEG = try Data(contentsOf: jpegSource)
+        let preservedOutcome = try ImageCompressionService().compress(
+            sourceURL: jpegSource,
+            settings: ImageCompressionSettings(
+                outputFormat: .png,
+                targetBytes: 80_000,
+                dimensionLimit: .pixels1242,
+                preservesSourceFormat: true
+            )
+        )
+
+        guard case .compressed(let result) = preservedOutcome else {
+            Issue.record("The JPEG fixture should produce a smaller same-format result")
+            return
+        }
+        #expect(result.outputURL.lastPathComponent == "Photo-crosio.JFIF")
+        #expect(result.outputFormat == .jpeg)
+        #expect(result.compressedBytes < result.originalBytes)
+        #expect(try Data(contentsOf: jpegSource) == originalJPEG)
+
+        let outputData = try Data(contentsOf: result.outputURL)
+        let imageSource = try #require(CGImageSourceCreateWithData(outputData as CFData, nil))
+        #expect(CGImageSourceGetType(imageSource) as String? == UTType.jpeg.identifier)
+        #expect(CGImageSourceGetCount(imageSource) == 1)
+    }
+
     @Test("Invalid files fail without leaving an output")
     func invalidInputDoesNotWriteOutput() throws {
         let directory = FileManager.default.temporaryDirectory
@@ -353,6 +497,24 @@ struct ImageCompressionFeatureTests {
     }
 
     @MainActor
+    @Test("Manual compression still uses the format selected in the app")
+    func manualCompressionKeepsSelectedFormatBehavior() async throws {
+        let fixture = try makeStubImage(named: "manual-format.png")
+        defer { try? FileManager.default.removeItem(at: fixture.deletingLastPathComponent()) }
+        let compressor = RecordingImageCompressor()
+        let model = try makeModel(service: compressor) { _ in }
+        model.outputFormat = .heic
+
+        model.addImages([fixture])
+        model.compressAll()
+        await model.waitForCompressionToFinish()
+
+        let settings = try #require(compressor.calledSettings.first)
+        #expect(settings.outputFormat == .heic)
+        #expect(!settings.preservesSourceFormat)
+    }
+
+    @MainActor
     @Test("Finder Open With compresses only its batch and reveals the result once")
     func externalOpenAutoCompressesAndReveals() async throws {
         let directory = try makeStubDirectory()
@@ -368,6 +530,7 @@ struct ImageCompressionFeatureTests {
         await model.waitForCompressionToFinish()
 
         #expect(compressor.calledURLs == [external])
+        #expect(compressor.calledSettings.map(\.preservesSourceFormat) == [true])
         #expect(model.items.count == 2)
         #expect(model.items.first(where: { $0.sourceURL == manual })?.state == .pending)
         let result = try completedResult(for: external, in: model)
@@ -399,6 +562,33 @@ struct ImageCompressionFeatureTests {
         #expect(revealBatches.count == 2)
         #expect(revealBatches[0] == [try completedResult(for: first, in: model).outputURL])
         #expect(revealBatches[1] == [try completedResult(for: second, in: model).outputURL])
+    }
+
+    @MainActor
+    @Test("Finder open during manual compression gets a separate preserved-format pass")
+    func externalOpenDuringManualCompressionIsRequeued() async throws {
+        let fixture = try makeStubImage(named: "manual-then-finder.png")
+        defer { try? FileManager.default.removeItem(at: fixture.deletingLastPathComponent()) }
+        let compressor = BlockingImageCompressor()
+        var revealBatches: [[URL]] = []
+        let model = try makeModel(service: compressor) { revealBatches.append($0) }
+        model.outputFormat = .heic
+
+        model.addImages([fixture])
+        model.compressAll()
+        for _ in 0..<10_000 where compressor.calledURLs.isEmpty {
+            await Task.yield()
+        }
+        #expect(compressor.calledURLs == [fixture])
+
+        model.addImagesFromExternalOpen([fixture])
+        compressor.releaseFirstCall()
+        await model.waitForCompressionToFinish()
+
+        #expect(compressor.calledURLs == [fixture, fixture])
+        #expect(compressor.calledSettings.map(\.preservesSourceFormat) == [false, true])
+        #expect(revealBatches.count == 1)
+        #expect(revealBatches.first == [try completedResult(for: fixture, in: model).outputURL])
     }
 
     @MainActor
@@ -549,6 +739,7 @@ private final class RecordingImageCompressor: ImageCompressing, @unchecked Senda
     private let lock = NSLock()
     private let behaviors: [String: Behavior]
     private var calls: [URL] = []
+    private var settingsCalls: [ImageCompressionSettings] = []
 
     init(behaviors: [String: Behavior] = [:]) {
         self.behaviors = behaviors
@@ -558,11 +749,18 @@ private final class RecordingImageCompressor: ImageCompressing, @unchecked Senda
         lock.withLock { calls }
     }
 
+    var calledSettings: [ImageCompressionSettings] {
+        lock.withLock { settingsCalls }
+    }
+
     func compress(
         sourceURL: URL,
         settings: ImageCompressionSettings
     ) throws -> ImageCompressionOutcome {
-        lock.withLock { calls.append(sourceURL) }
+        lock.withLock {
+            calls.append(sourceURL)
+            settingsCalls.append(settings)
+        }
         switch behaviors[sourceURL.lastPathComponent] ?? .compressed {
         case .compressed:
             return try Self.makeCompressedOutcome(for: sourceURL)
@@ -594,10 +792,15 @@ private final class RecordingImageCompressor: ImageCompressing, @unchecked Senda
 private final class BlockingImageCompressor: ImageCompressing, @unchecked Sendable {
     private let condition = NSCondition()
     private var calls: [URL] = []
+    private var settingsCalls: [ImageCompressionSettings] = []
     private var firstCallReleased = false
 
     var calledURLs: [URL] {
         condition.withLock { calls }
+    }
+
+    var calledSettings: [ImageCompressionSettings] {
+        condition.withLock { settingsCalls }
     }
 
     func releaseFirstCall() {
@@ -613,6 +816,7 @@ private final class BlockingImageCompressor: ImageCompressing, @unchecked Sendab
     ) throws -> ImageCompressionOutcome {
         condition.lock()
         calls.append(sourceURL)
+        settingsCalls.append(settings)
         let shouldWait = calls.count == 1
         while shouldWait, !firstCallReleased {
             condition.wait()
