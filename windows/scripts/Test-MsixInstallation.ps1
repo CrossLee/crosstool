@@ -465,7 +465,9 @@ function Wait-ForSetupAction {
         [hashtable]$StartTimes,
 
         [Parameter(Mandatory)]
-        [hashtable]$Handles
+        [hashtable]$Handles,
+
+        [int]$ExpectedWindowHandle = 0
     )
 
     $noProcessSince = $null
@@ -479,12 +481,21 @@ function Wait-ForSetupAction {
         foreach ($window in $visibleWindows) {
             try {
                 $windowTitle = [string]$window.Current.Name
-                if (-not $windowTitle.StartsWith("Crosio", [StringComparison]::OrdinalIgnoreCase)) {
+                $windowHandle = [int]$window.Current.NativeWindowHandle
+                if ($ExpectedWindowHandle -ne 0 -and $windowHandle -ne $ExpectedWindowHandle) {
+                    continue
+                }
+                if ($ExpectedWindowHandle -eq 0 -and
+                    -not $windowTitle.Trim().StartsWith(
+                        $script:SetupWindowTitle,
+                        [StringComparison]::Ordinal)) {
                     continue
                 }
 
                 $pageText = Get-AutomationElementText -Window $window
-                $lastOwnedInstallerText = Format-SetupDiagnosticText -Text ($windowTitle + " | " + $pageText)
+                $titleDiagnostic = Format-SetupControlText -Text $windowTitle
+                $lastOwnedInstallerText = Format-SetupDiagnosticText -Text (
+                    "Title=" + $titleDiagnostic + "; HWND=" + $windowHandle + " | " + $pageText)
                 if ($pageText.Contains($script:SetupFailureText) -or
                     $pageText.Contains($script:SetupIncompleteText) -or
                     $pageText.Contains($script:SetupSystemInstallerText) -or
@@ -492,15 +503,12 @@ function Wait-ForSetupAction {
                     throw "The Crosio GUI installer displayed an error during $Stage. Installer UI: $lastOwnedInstallerText"
                 }
 
-                if ($windowTitle -ne $script:SetupWindowTitle) {
-                    continue
-                }
-
                 $button = Find-EnabledSetupButton -Window $window -NamePrefixes $ButtonPrefixes
                 $lastButtonDiagnostics = $script:LastSetupButtonDiagnostics
                 if ($null -ne $button) {
                     return [pscustomobject]@{
                         Window = $window
+                        WindowHandle = $windowHandle
                         Button = $button
                         ProcessId = [int]$window.Current.ProcessId
                         PageText = $pageText
@@ -999,7 +1007,8 @@ try {
                 -DeadlineUtc $setupDeadlineUtc `
                 -NotBeforeUtc $setupNotBeforeUtc `
                 -StartTimes $setupOwnedStartTimes `
-                -Handles $setupOwnedHandles
+                -Handles $setupOwnedHandles `
+                -ExpectedWindowHandle $installAction.WindowHandle
             [void]$setupUiProcessIds.Add($finishAction.ProcessId)
             if (-not $finishAction.PageText.Contains($script:SetupCompletionText)) {
                 throw "The Crosio GUI installer did not reach its expected successful Finish page on attempt $setupAttemptNumber."
