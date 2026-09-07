@@ -546,7 +546,7 @@ function Invoke-SetupAction {
             [void]$invokePattern.Invoke()
             return
             }
-            catch [System.InvalidOperationException] {
+            catch {
                 if ($Button.NativeHandle -eq [IntPtr]::Zero) {
                     throw
                 }
