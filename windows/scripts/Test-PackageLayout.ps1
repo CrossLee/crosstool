@@ -126,6 +126,7 @@ $verbs = @($manifest.SelectNodes("//desktop5:Verb", $namespaces))
 Assert-True ($verbs.Count -eq 2) "Copy path must be registered once for files and once for directories."
 foreach ($verb in $verbs) {
     Assert-True ($verb.GetAttribute("Clsid").ToUpperInvariant() -eq $manifestClsid) "A context-menu verb uses the wrong CLSID."
+    Assert-True ($verb.GetAttribute("Id") -match '^[A-Za-z0-9]+$') "A context-menu verb Id must contain only letters and digits, as required by the desktop5 schema."
 }
 
 $itemTypes = @(

@@ -100,12 +100,12 @@
           <desktop4:FileExplorerContextMenus>
             <desktop5:ItemType Type="*">
               <desktop5:Verb
-                Id="Crosio.CopyPath.File"
+                Id="CrosioCopyPathFile"
                 Clsid="6EA97827-5B42-4E82-8ABC-4FC22D3BE129" />
             </desktop5:ItemType>
             <desktop5:ItemType Type="Directory">
               <desktop5:Verb
-                Id="Crosio.CopyPath.Directory"
+                Id="CrosioCopyPathDirectory"
                 Clsid="6EA97827-5B42-4E82-8ABC-4FC22D3BE129" />
             </desktop5:ItemType>
           </desktop4:FileExplorerContextMenus>
