@@ -3,6 +3,7 @@ param()
 
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
+. (Join-Path $PSScriptRoot "Packaging.Common.ps1")
 
 $windowsRoot = Split-Path -Parent $PSScriptRoot
 $repositoryRoot = Split-Path -Parent $windowsRoot
@@ -234,17 +235,25 @@ foreach ($requiredLicensePayload in $requiredLicensePayloads) {
 }
 foreach ($requiredRecordingPayload in @(
     "ScreenRecorderLib.dll",
-    "concrt140.dll",
-    "msvcp140.dll",
-    "vcruntime140.dll",
-    "vcruntime140_1.dll",
     "THIRD_PARTY_NOTICES.md"
 )) {
     Assert-True ($buildMsix.Contains($requiredRecordingPayload)) "MSIX inspection does not require $requiredRecordingPayload."
 }
 
+$x64RuntimeFiles = @(Get-CrosioRequiredVCRuntimeFiles -Architecture "x64")
+$arm64RuntimeFiles = @(Get-CrosioRequiredVCRuntimeFiles -Architecture "ARM64")
+foreach ($runtimeFile in @("concrt140.dll", "msvcp140.dll", "msvcp140_1.dll", "vcruntime140.dll")) {
+    Assert-True ($x64RuntimeFiles -contains $runtimeFile) "The x64 CRT payload does not require $runtimeFile."
+    Assert-True ($arm64RuntimeFiles -contains $runtimeFile) "The ARM64 CRT payload does not require $runtimeFile."
+}
+Assert-True ($x64RuntimeFiles -contains "vcruntime140_1.dll") "The x64 exception runtime is missing from its required payload."
+Assert-True ($arm64RuntimeFiles -notcontains "vcruntime140_1.dll") "The ARM64 payload must not require the x64/ARM64EC exception helper."
+Assert-True ($buildMsix -match 'Get-CrosioRequiredVCRuntimeFiles') "MSIX inspection does not use the architecture-specific CRT payload."
+Assert-True ($appProject -match 'Content Remove="\$\(CrosioVCRuntimeDirectory\)\\vcruntime140_1\.dll"') "App staging does not exclude the incompatible ARM64 redist helper."
+
 $verifyWindows = Get-Content -LiteralPath $verifyWindowsPath -Raw
 Assert-True ($verifyWindows -match 'Resolve-CrosioVCRuntimeDirectory') "Unpackaged publishing does not resolve the matching app-local VC++ runtime."
+Assert-True ($verifyWindows -match 'Get-CrosioRequiredVCRuntimeFiles') "Unpackaged inspection does not use the architecture-specific CRT payload."
 Assert-True ($verifyWindows -match '-p:Platform=\$Platform') "Windows verification must pass Platform explicitly to native-aware builds."
 foreach ($requiredLicensePayload in $requiredLicensePayloads) {
     Assert-True ($verifyWindows.Contains($requiredLicensePayload)) "Unpackaged verification does not require $requiredLicensePayload."

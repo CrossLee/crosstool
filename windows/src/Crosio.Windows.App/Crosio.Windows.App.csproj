@@ -64,6 +64,10 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
+    <!-- The ARM64 redist also contains an x64/ARM64EC exception helper.
+         None of our pure ARM64 dependencies imports it; do not ship it. -->
+    <Content Remove="$(CrosioVCRuntimeDirectory)\vcruntime140_1.dll"
+             Condition="'$(Platform)' == 'ARM64' or '$(RuntimeIdentifier)' == 'win-arm64'" />
   </ItemGroup>
 
   <ItemGroup>
@@ -121,8 +125,11 @@
       Condition="'$(CrosioVCRuntimeDirectory)' == ''"
       Text="CrosioVCRuntimeDirectory must point to the matching Microsoft.VC143.CRT directory." />
     <Error
-      Condition="!Exists('$(CrosioVCRuntimeDirectory)\concrt140.dll') or !Exists('$(CrosioVCRuntimeDirectory)\msvcp140.dll') or !Exists('$(CrosioVCRuntimeDirectory)\vcruntime140.dll') or !Exists('$(CrosioVCRuntimeDirectory)\vcruntime140_1.dll')"
+      Condition="!Exists('$(CrosioVCRuntimeDirectory)\concrt140.dll') or !Exists('$(CrosioVCRuntimeDirectory)\msvcp140.dll') or !Exists('$(CrosioVCRuntimeDirectory)\msvcp140_1.dll') or !Exists('$(CrosioVCRuntimeDirectory)\vcruntime140.dll')"
       Text="The matching app-local Microsoft.VC143.CRT payload is incomplete: $(CrosioVCRuntimeDirectory)" />
+    <Error
+      Condition="'$(Platform)' != 'ARM64' and '$(RuntimeIdentifier)' != 'win-arm64' and !Exists('$(CrosioVCRuntimeDirectory)\vcruntime140_1.dll')"
+      Text="The x64 app-local Microsoft.VC143.CRT payload is missing vcruntime140_1.dll: $(CrosioVCRuntimeDirectory)" />
     <Error
       Condition="!Exists('$(CrosioShellExtensionOutput)')"
       Text="The packaged Explorer command DLL is missing: $(CrosioShellExtensionOutput)" />

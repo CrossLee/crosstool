@@ -19,7 +19,7 @@
 
 翻译入口已经接入真实 Marian ONNX 推理引擎和协调器。界面可一键下载固定 revision、逐文件校验大小与 SHA-256 后安装中英双向模型，也保留选择本地模型 ZIP 的高级入口。仓库与安装包不捆绑数百 MB 的模型权重；首次下载需要联网，安装后原文与推理全程留在本机。所需方向未安装模型时，界面会明确提示，而不是假装翻译成功。当前模型卡许可按方向区分：中文到英文（zh-en）是 `CC-BY-4.0`，英文到简体中文（en-zh）是 `Apache-2.0`。模型包格式、安全校验与许可字段见 `src/Crosio.Windows.Translation/MODEL_PACK_FORMAT.md`。
 
-这仍是 Windows 开发版源码，不等于已完成真机验收。当前开发机是 macOS，无法执行 WinUI 的 `XamlCompiler.exe`、MSVC v143、Windows Desktop testhost、MSIX 安装、资源管理器菜单、屏幕捕获和 OCR。仓库中的 Windows CI 会补齐编译与打包检查；安装后的交互仍需在 Windows 11 x64 和 ARM64 真机分别验收。
+这仍是 Windows 预览版，不等于已完成全部桌面交互验收。开发机是 macOS，Windows 专属验证交给真实 Windows CI：x64 测试、WinUI/MSVC 编译、原生复制路径调用与主窗口启动，以及 Windows 11 ARM64 的 MSIX 安装和已注册应用启动。具体通过情况以对应版本的 Actions 记录为准；截图、录屏、OCR、多屏、资源管理器实际右键菜单等交互仍需在 Windows 11 x64 和 ARM64 桌面分别验收。
 
 ## 工程结构
 
@@ -29,6 +29,7 @@ windows/
 ├── scripts/
 │   ├── verify-windows.ps1        # 测试、Windows 编译、unpackaged 测试构建
 │   ├── Test-AppStartup.ps1       # 实际启动 unpackaged 主程序并验证可见主窗
+│   ├── Test-MsixInstallation.ps1 # Windows 11 ARM64 安装、注册启动和隔离清理
 │   ├── Test-PackageLayout.ps1    # 清单/CLSID/打包载荷静态一致性检查
 │   ├── build-msix.ps1            # 单架构 MSIX
 │   ├── build-msixbundle.ps1      # x64 + ARM64 MSIXBundle
@@ -123,7 +124,7 @@ Explorer 扩展采用系统 COM surrogate：`com:SurrogateServer` 直接注册 D
 .\Install-Crosio.ps1
 ```
 
-脚本只会对真正未签名的包使用 `Add-AppxPackage -AllowUnsigned`。若包有无效或不受信任的签名，它会停止并提示处理证书，不会绕过签名错误。unsigned 包只用于开发测试，不作为公开发行包。
+脚本只会对真正未签名的包使用 `Add-AppxPackage -AllowUnsigned`。若包有无效或不受信任的签名，它会停止并提示处理证书，不会绕过签名错误。unsigned 包只用于开发测试；即使作为 GitHub prerelease 提供下载，也不是正式受信任的发行版。
 
 有代码签名 PFX 时：
 

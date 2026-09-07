@@ -37,6 +37,7 @@ $rawOutput = Join-Path $artifactRoot "app-packages/$($Architecture.ToLowerInvari
 $normalizedOutput = Join-Path $artifactRoot "packages/$($Architecture.ToLowerInvariant())"
 $runtimeIdentifier = if ($Architecture -eq "ARM64") { "win-arm64" } else { "win-x64" }
 $vcRuntimeDirectory = Resolve-CrosioVCRuntimeDirectory $Architecture
+$vcRuntimeFiles = @(Get-CrosioRequiredVCRuntimeFiles -Architecture $Architecture)
 $unsignedPublisher = "CN=Crosio, OID.2.25.311729368913984317654407730594956997722=1"
 
 if ([string]::IsNullOrWhiteSpace($CertificatePath) -and -not [string]::IsNullOrEmpty($CertificatePassword)) {
@@ -158,10 +159,6 @@ $requiredPackageFiles = @(
     "onnxruntime_providers_shared.dll",
     "Crosio.Windows.Media.dll",
     "ScreenRecorderLib.dll",
-    "concrt140.dll",
-    "msvcp140.dll",
-    "vcruntime140.dll",
-    "vcruntime140_1.dll",
     "THIRD_PARTY_NOTICES.md",
     "Licenses/Microsoft.WindowsAppSDK-LICENSE.txt",
     "Licenses/Microsoft.WindowsAppSDK-NOTICE.txt",
@@ -171,7 +168,7 @@ $requiredPackageFiles = @(
     "Licenses/Microsoft.ML.Tokenizers-ThirdPartyNotices.txt",
     "Licenses/ScreenRecorderLib-LICENSE.txt",
     "ShellExtensions/Crosio.Windows.ShellExtension.dll"
-)
+) + $vcRuntimeFiles
 foreach ($relativePackageFile in $requiredPackageFiles) {
     $requiredPackageFile = Join-Path $inspectionDirectory $relativePackageFile
     if (-not (Test-Path -LiteralPath $requiredPackageFile -PathType Leaf)) {
@@ -179,7 +176,7 @@ foreach ($relativePackageFile in $requiredPackageFiles) {
     }
 }
 
-foreach ($nativePackageFile in @(
+foreach ($nativePackageFile in (@(
     "Crosio.exe",
     "coreclr.dll",
     "hostfxr.dll",
@@ -187,13 +184,12 @@ foreach ($nativePackageFile in @(
     "Microsoft.WindowsAppRuntime.dll",
     "onnxruntime.dll",
     "onnxruntime_providers_shared.dll",
-    "ScreenRecorderLib.dll",
-    "concrt140.dll",
-    "msvcp140.dll",
-    "vcruntime140.dll",
-    "vcruntime140_1.dll"
-)) {
+    "ScreenRecorderLib.dll"
+) + $vcRuntimeFiles)) {
     Assert-CrosioPeArchitecture (Join-Path $inspectionDirectory $nativePackageFile) $Architecture
+}
+if ($Architecture -eq "ARM64" -and (Test-Path -LiteralPath (Join-Path $inspectionDirectory "vcruntime140_1.dll"))) {
+    throw "The pure ARM64 MSIX must not contain the x64/ARM64EC vcruntime140_1.dll helper."
 }
 Assert-CrosioPeArchitecture $packagedShellDll $Architecture
 

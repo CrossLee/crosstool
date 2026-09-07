@@ -71,6 +71,29 @@ function Resolve-CrosioWindowsSdkTool {
     return $candidates[0].FullName
 }
 
+function Get-CrosioRequiredVCRuntimeFiles {
+    param(
+        [Parameter(Mandatory)]
+        [ValidateSet("x64", "ARM64")]
+        [string]$Architecture
+    )
+
+    # ScreenRecorderLib needs the concurrency/C++ runtimes; ONNX also imports
+    # msvcp140_1.dll. VCRUNTIME140_1 supplies x64 exception handling and is not
+    # imported by our pure ARM64 dependencies. The ARM64 VS redist directory
+    # includes an x64/ARM64EC copy, which must not enter the pure ARM64 payload.
+    $requiredFiles = @(
+        "concrt140.dll",
+        "msvcp140.dll",
+        "msvcp140_1.dll",
+        "vcruntime140.dll"
+    )
+    if ($Architecture -eq "x64") {
+        $requiredFiles += "vcruntime140_1.dll"
+    }
+    return $requiredFiles
+}
+
 function Resolve-CrosioVCRuntimeDirectory {
     param(
         [Parameter(Mandatory)]
@@ -83,12 +106,7 @@ function Resolve-CrosioVCRuntimeDirectory {
     }
 
     $architectureDirectory = $Architecture.ToLowerInvariant()
-    $requiredFiles = @(
-        "concrt140.dll",
-        "msvcp140.dll",
-        "vcruntime140.dll",
-        "vcruntime140_1.dll"
-    )
+    $requiredFiles = @(Get-CrosioRequiredVCRuntimeFiles -Architecture $Architecture)
     $redistRoots = @()
 
     if (-not [string]::IsNullOrWhiteSpace($env:VCToolsRedistDir)) {
@@ -140,6 +158,9 @@ function Resolve-CrosioVCRuntimeDirectory {
             }
         }
         if (-not $missingFile) {
+            foreach ($requiredFile in $requiredFiles) {
+                Assert-CrosioPeArchitecture -Path (Join-Path $candidateDirectory $requiredFile) -ExpectedArchitecture $Architecture
+            }
             return (Resolve-Path -LiteralPath $candidateDirectory).Path
         }
     }

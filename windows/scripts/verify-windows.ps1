@@ -115,6 +115,7 @@ Invoke-VerificationStage -Name "Native shell build and clipboard smoke test" -Ac
 $publishDirectory = Join-Path $artifactRoot "publish/$runtimeIdentifier"
 Invoke-VerificationStage -Name "WinUI app build, publish, payload, and startup" -Action {
     $vcRuntimeDirectory = Resolve-CrosioVCRuntimeDirectory $Platform
+    $vcRuntimeFiles = @(Get-CrosioRequiredVCRuntimeFiles -Architecture $Platform)
     $appProject = Join-Path $windowsRoot "src/Crosio.Windows.App/Crosio.Windows.App.csproj"
     Invoke-Checked -Command "dotnet" -Arguments @(
         "build", $appProject,
@@ -140,10 +141,6 @@ Invoke-VerificationStage -Name "WinUI app build, publish, payload, and startup" 
         "onnxruntime.dll",
         "onnxruntime_providers_shared.dll",
         "ScreenRecorderLib.dll",
-        "concrt140.dll",
-        "msvcp140.dll",
-        "vcruntime140.dll",
-        "vcruntime140_1.dll",
         "THIRD_PARTY_NOTICES.md",
         "Licenses/Microsoft.WindowsAppSDK-LICENSE.txt",
         "Licenses/Microsoft.WindowsAppSDK-NOTICE.txt",
@@ -152,7 +149,7 @@ Invoke-VerificationStage -Name "WinUI app build, publish, payload, and startup" 
         "Licenses/Microsoft.ML.Tokenizers-LICENSE.txt",
         "Licenses/Microsoft.ML.Tokenizers-ThirdPartyNotices.txt",
         "Licenses/ScreenRecorderLib-LICENSE.txt"
-    )
+    ) + $vcRuntimeFiles
     foreach ($relativePublishFile in $requiredPublishFiles) {
         $publishFile = Join-Path $publishDirectory $relativePublishFile
         if (-not (Test-Path -LiteralPath $publishFile -PathType Leaf)) {
@@ -160,17 +157,16 @@ Invoke-VerificationStage -Name "WinUI app build, publish, payload, and startup" 
         }
     }
 
-    foreach ($nativePublishFile in @(
+    foreach ($nativePublishFile in (@(
         "Crosio.exe",
         "onnxruntime.dll",
         "onnxruntime_providers_shared.dll",
-        "ScreenRecorderLib.dll",
-        "concrt140.dll",
-        "msvcp140.dll",
-        "vcruntime140.dll",
-        "vcruntime140_1.dll"
-    )) {
+        "ScreenRecorderLib.dll"
+    ) + $vcRuntimeFiles)) {
         Assert-CrosioPeArchitecture (Join-Path $publishDirectory $nativePublishFile) $Platform
+    }
+    if ($Platform -eq "ARM64" -and (Test-Path -LiteralPath (Join-Path $publishDirectory "vcruntime140_1.dll"))) {
+        throw "The pure ARM64 publish must not contain the x64/ARM64EC vcruntime140_1.dll helper."
     }
 
     if ($canRunShellSmoke) {
