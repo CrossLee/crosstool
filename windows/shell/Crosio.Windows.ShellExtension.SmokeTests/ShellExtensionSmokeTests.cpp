@@ -198,10 +198,10 @@ public:
     TemporaryDirectory(const TemporaryDirectory&) = delete;
     TemporaryDirectory& operator=(const TemporaryDirectory&) = delete;
 
-    std::filesystem::path CreateFile(const std::wstring& name) const
+    std::filesystem::path CreateTestFile(const std::wstring& name) const
     {
         const std::filesystem::path path = _path / name;
-        const UniqueHandle file(CreateFileW(
+        const UniqueHandle file(::CreateFileW(
             path.c_str(),
             GENERIC_WRITE,
             FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
@@ -512,7 +512,7 @@ void RunSmokeTest(const std::wstring& extensionPath)
 
     const TemporaryDirectory temporaryDirectory;
     const std::wstring filePath = GetAbsoluteLongPath(
-        temporaryDirectory.CreateFile(L"Unicode 文件 截图-äöü.png"));
+        temporaryDirectory.CreateTestFile(L"Unicode 文件 截图-äöü.png"));
     const std::wstring folderPath = GetAbsoluteLongPath(
         temporaryDirectory.CreateFolder(L"Unicode 文件夹-测试"));
 

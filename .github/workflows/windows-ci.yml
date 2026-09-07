@@ -21,6 +21,7 @@ jobs:
     # Pin VS 2022 because the native extension targets MSVC v143 for both x64
     # and ARM64; the newer VS 2026 image does not include v143 ARM64 tools.
     runs-on: windows-2022
+    timeout-minutes: 20
     env:
       HAS_WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 != '' }}
 

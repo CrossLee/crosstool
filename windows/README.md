@@ -28,6 +28,7 @@ windows/
 ├── Crosio.Windows.sln
 ├── scripts/
 │   ├── verify-windows.ps1        # 测试、Windows 编译、unpackaged 测试构建
+│   ├── Test-AppStartup.ps1       # 实际启动 unpackaged 主程序并验证可见主窗
 │   ├── Test-PackageLayout.ps1    # 清单/CLSID/打包载荷静态一致性检查
 │   ├── build-msix.ps1            # 单架构 MSIX
 │   ├── build-msixbundle.ps1      # x64 + ARM64 MSIXBundle
@@ -76,6 +77,14 @@ Explorer 扩展采用系统 COM surrogate：`com:SurrogateServer` 直接注册 D
 ```
 
 该命令依次执行打包结构静态检查、所有测试项目、Windows 专属模块编译、x64 原生 Explorer 扩展编译、WinUI 编译，以及一个 unpackaged 自包含测试构建。它不会把 unpackaged 目录冒充安装包。
+
+生成 x64 unpackaged 目录后，可在隔离的 Windows runner 上执行真实启动 smoke：
+
+```powershell
+.\scripts\Test-AppStartup.ps1
+```
+
+脚本实际启动 `artifacts\publish\win-x64\Crosio.exe`，在 30 秒总预算内通过 PID 枚举可见顶层窗口，要求出现并稳定保持标题为 `Crosio` 的主窗口。它仅终止自己通过 `Start-Process` 启动并持有句柄的进程，不搜索或结束其他 Crosio 实例，也不操作注册表、配置和剪贴板。Windows App SDK 1.8 [支持 Windows Server 2022](https://learn.microsoft.com/windows/apps/windows-app-sdk/support)，因此该检查会在 GitHub `windows-2022` runner 上实际执行而不是跳过；但它只证明 unpackaged 主程序可以启动，Crosio 的发行与交互验收边界仍是 Windows 11 build 22000 以上。
 
 只检查清单与 Explorer 扩展一致性：
 

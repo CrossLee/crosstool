@@ -143,4 +143,11 @@ foreach ($nativePublishFile in @(
     Assert-CrosioPeArchitecture (Join-Path $publishDirectory $nativePublishFile) $Platform
 }
 
+if ($canRunShellSmoke) {
+    & (Join-Path $PSScriptRoot "Test-AppStartup.ps1") -ApplicationPath (Join-Path $publishDirectory "Crosio.exe")
+}
+else {
+    Write-Warning "The $Platform unpackaged application was built but cannot be launched on a $hostArchitecture host."
+}
+
 Write-Host "Windows verification passed. Self-contained test build: $publishDirectory"
