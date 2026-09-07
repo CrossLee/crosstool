@@ -5,7 +5,9 @@ param(
 
     [string]$PackageDirectory,
 
-    [switch]$AllowUnsignedTestPackage
+    [switch]$AllowUnsignedTestPackage,
+
+    [switch]$RequirePreparedNsis
 )
 
 $ErrorActionPreference = "Stop"
@@ -127,7 +129,19 @@ function Test-NsisDownload {
 # These are SourceForge's official direct-file endpoints and download mirror.
 # Every attempt, including cached files, must match the unchanged winget pin.
 if (-not (Test-NsisDownload -Path $nsisDownload)) {
+    if ($RequirePreparedNsis) {
+        throw "The prepared NSIS 3.12 artifact is missing or invalid at $nsisDownload. CI requires the verified same-run tool artifact; Windows network fallback is disabled."
+    }
+    # This fallback is for local Windows builds only. CI prepares and verifies
+    # the tool on Ubuntu before the expensive Windows build starts. Use the
+    # system curl client rather than Invoke-WebRequest, which SourceForge can
+    # serve an HTML interstitial even from its nominal direct-file endpoints.
+    $curlPath = Join-Path $env:WINDIR "System32/curl.exe"
+    if (-not (Test-Path -LiteralPath $curlPath -PathType Leaf)) {
+        throw "The Windows system curl client is missing. Supply the pinned prepared NSIS tool artifact."
+    }
     $downloadUrls = @(
+        "https://sourceforge.net/projects/nsis/files/NSIS%203/3.12/nsis-3.12-setup.exe/download",
         "https://downloads.sourceforge.net/project/nsis/NSIS%203/3.12/nsis-3.12-setup.exe",
         "https://prdownloads.sourceforge.net/nsis/nsis-3.12-setup.exe?download",
         "https://pilotfiber.dl.sourceforge.net/project/nsis/NSIS%203/3.12/nsis-3.12-setup.exe"
@@ -137,7 +151,12 @@ if (-not (Test-NsisDownload -Path $nsisDownload)) {
         $attemptPath = Join-Path $toolsDirectory ("nsis-3.12-" + [Guid]::NewGuid().ToString("N") + ".download")
         try {
             Write-Host "Downloading pinned NSIS 3.12 from $downloadUrl"
-            Invoke-WebRequest -Uri $downloadUrl -OutFile $attemptPath -UseBasicParsing -TimeoutSec 60 -ErrorAction Stop
+            Invoke-CrosioChecked -Command $curlPath -Arguments @(
+                "--fail", "--location", "--silent", "--show-error",
+                "--proto", "=https", "--proto-redir", "=https",
+                "--connect-timeout", "15", "--max-time", "60",
+                "--output", $attemptPath, $downloadUrl
+            )
             if (Test-NsisDownload -Path $attemptPath) {
                 Move-Item -LiteralPath $attemptPath -Destination $nsisDownload -Force
                 $downloadVerified = $true

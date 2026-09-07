@@ -17,7 +17,52 @@ permissions:
   contents: read
 
 jobs:
+  prepare-installer-tool:
+    # SourceForge may serve an HTML interstitial to Windows hosted runners.
+    # Fetch on Linux, pin the original release bytes, and transfer only through
+    # this run's artifact. build-setup.ps1 independently verifies the same pin.
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Download and verify the official NSIS compiler
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          mkdir -p "$RUNNER_TEMP/crosio-nsis"
+          tool_path="$RUNNER_TEMP/crosio-nsis/nsis-3.12-setup.exe"
+          expected_hash="3bc2b06253a7e4957111be152ac6a536e0c7478a706e19da814038db5d706495"
+          urls=(
+            "https://sourceforge.net/projects/nsis/files/NSIS%203/3.12/nsis-3.12-setup.exe/download"
+            "https://downloads.sourceforge.net/project/nsis/NSIS%203/3.12/nsis-3.12-setup.exe"
+          )
+          verified=false
+          for url in "${urls[@]}"; do
+            if curl --fail --location --proto '=https' --proto-redir '=https' --max-time 60 --retry 1 --output "$tool_path" "$url"; then
+              actual_hash="$(sha256sum "$tool_path" | cut -d ' ' -f 1)"
+              actual_size="$(stat -c %s "$tool_path")"
+              if [[ "$actual_hash" == "$expected_hash" && "$actual_size" == 1566914 ]]; then
+                verified=true
+                break
+              fi
+              echo "Rejected compiler download: SHA256=$actual_hash; bytes=$actual_size" >&2
+            fi
+          done
+          if [[ "$verified" != true ]]; then
+            echo "No official compiler download matched the pinned release bytes." >&2
+            exit 1
+          fi
+          echo "Verified original NSIS 3.12 compiler bytes."
+
+      - name: Transfer the verified compiler to this run
+        uses: actions/upload-artifact@v4
+        with:
+          name: Crosio-nsis-3.12-build-tool
+          path: ${{ runner.temp }}/crosio-nsis/nsis-3.12-setup.exe
+          if-no-files-found: error
+          retention-days: 1
+
   verify-windows:
+    needs: prepare-installer-tool
     # Pin VS 2022 because the native extension targets MSVC v143 for both x64
     # and ARM64; the newer VS 2026 image does not include v143 ARM64 tools.
     runs-on: windows-2022
@@ -41,6 +86,12 @@ jobs:
 
       - name: Add MSBuild to PATH
         uses: microsoft/setup-msbuild@v2
+
+      - name: Download the pinned compiler from this run
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: Crosio-nsis-3.12-build-tool
+          path: windows/artifacts/tools
 
       - name: Run Windows verification
         shell: pwsh
@@ -98,6 +149,7 @@ jobs:
           .\scripts\build-setup.ps1
           -Version "${{ steps.package_version.outputs.version }}"
           -AllowUnsignedTestPackage
+          -RequirePreparedNsis
 
       - name: Upload unsigned test MSIX packages
         if: success() && steps.signing_certificate.outputs.path == ''
