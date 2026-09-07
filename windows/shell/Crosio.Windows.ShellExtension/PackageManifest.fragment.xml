@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Merge these children into the WinUI application's <Extensions> element.
+  The Package element must declare the com, desktop4, and desktop5 namespaces
+  and include com/desktop4/desktop5 in IgnorableNamespaces.
+-->
+<Extensions
+  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:com="http://schemas.microsoft.com/appx/manifest/com/windows10"
+  xmlns:desktop4="http://schemas.microsoft.com/appx/manifest/desktop/windows10/4"
+  xmlns:desktop5="http://schemas.microsoft.com/appx/manifest/desktop/windows10/5">
+  <com:Extension Category="windows.comServer">
+    <com:ComServer>
+      <com:SurrogateServer
+        DisplayName="Crosio shell commands">
+        <com:Class
+          Id="6EA97827-5B42-4E82-8ABC-4FC22D3BE129"
+          Path="ShellExtensions\Crosio.Windows.ShellExtension.dll"
+          ThreadingModel="STA" />
+      </com:SurrogateServer>
+    </com:ComServer>
+  </com:Extension>
+
+  <desktop4:Extension Category="windows.fileExplorerContextMenus">
+    <desktop4:FileExplorerContextMenus>
+      <desktop5:ItemType Type="*">
+        <desktop5:Verb
+          Id="Crosio.CopyPath.File"
+          Clsid="6EA97827-5B42-4E82-8ABC-4FC22D3BE129" />
+      </desktop5:ItemType>
+      <desktop5:ItemType Type="Directory">
+        <desktop5:Verb
+          Id="Crosio.CopyPath.Directory"
+          Clsid="6EA97827-5B42-4E82-8ABC-4FC22D3BE129" />
+      </desktop5:ItemType>
+    </desktop4:FileExplorerContextMenus>
+  </desktop4:Extension>
+</Extensions>

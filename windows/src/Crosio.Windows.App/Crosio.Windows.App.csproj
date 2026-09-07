@@ -1,0 +1,117 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.19041.0</TargetPlatformMinVersion>
+    <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
+    <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
+    <Platforms>x64;ARM64</Platforms>
+    <UseWinUI>true</UseWinUI>
+    <EnableMsixTooling>true</EnableMsixTooling>
+    <WindowsPackageType Condition="'$(CrosioPackageMode)' == 'MSIX'">MSIX</WindowsPackageType>
+    <WindowsPackageType Condition="'$(WindowsPackageType)' == ''">None</WindowsPackageType>
+    <SelfContained Condition="'$(WindowsPackageType)' == 'MSIX' and '$(RuntimeIdentifier)' != ''">true</SelfContained>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <RootNamespace>Crosio.Windows.App</RootNamespace>
+    <AssemblyName>Crosio</AssemblyName>
+    <CrosioShellExtensionOutput>$(MSBuildThisFileDirectory)..\..\artifacts\shell\$(Platform)\$(Configuration)\Crosio.Windows.ShellExtension.dll</CrosioShellExtensionOutput>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.260804001" GeneratePathProperty="true" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="$(PkgMicrosoft_WindowsAppSDK)/license.txt">
+      <Link>Licenses\Microsoft.WindowsAppSDK-LICENSE.txt</Link>
+      <TargetPath>Licenses\Microsoft.WindowsAppSDK-LICENSE.txt</TargetPath>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="$(PkgMicrosoft_WindowsAppSDK)/NOTICE.txt">
+      <Link>Licenses\Microsoft.WindowsAppSDK-NOTICE.txt</Link>
+      <TargetPath>Licenses\Microsoft.WindowsAppSDK-NOTICE.txt</TargetPath>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="../../THIRD_PARTY_NOTICES.md">
+      <Link>THIRD_PARTY_NOTICES.md</Link>
+      <TargetPath>THIRD_PARTY_NOTICES.md</TargetPath>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
+
+  <!--
+    ScreenRecorderLib is a mixed-mode C++/CLI assembly. Packaging scripts pass
+    the matching VC143 redist directory so both MSIX and unpackaged builds are
+    app-local and do not assume that the target PC already has the VC++ runtime.
+  -->
+  <ItemGroup Condition="'$(CrosioVCRuntimeDirectory)' != ''">
+    <Content Include="$(CrosioVCRuntimeDirectory)\*.dll">
+      <Link>%(Filename)%(Extension)</Link>
+      <TargetPath>%(Filename)%(Extension)</TargetPath>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Crosio.Windows.Accessibility/Crosio.Windows.Accessibility.csproj" />
+    <ProjectReference Include="../Crosio.Windows.Capture/Crosio.Windows.Capture.csproj" />
+    <ProjectReference Include="../Crosio.Windows.Core/Crosio.Windows.Core.csproj" />
+    <ProjectReference Include="../Crosio.Windows.Hotkeys/Crosio.Windows.Hotkeys.csproj" />
+    <ProjectReference Include="../Crosio.Windows.Intelligence/Crosio.Windows.Intelligence.csproj" />
+    <ProjectReference Include="../Crosio.Windows.LongCapture/Crosio.Windows.LongCapture.csproj" />
+    <ProjectReference Include="../Crosio.Windows.Media/Crosio.Windows.Media.csproj" />
+    <ProjectReference Include="../Crosio.Windows.Ocr/Crosio.Windows.Ocr.csproj" />
+    <ProjectReference Include="../Crosio.Windows.Platform/Crosio.Windows.Platform.csproj" />
+    <ProjectReference Include="../Crosio.Windows.Sharing/Crosio.Windows.Sharing.csproj" />
+    <ProjectReference Include="../Crosio.Windows.Translation/Crosio.Windows.Translation.csproj" />
+    <ProjectReference
+      Include="../../shell/Crosio.Windows.ShellExtension/Crosio.Windows.ShellExtension.vcxproj"
+      Condition="'$(WindowsPackageType)' == 'MSIX' and '$(OS)' == 'Windows_NT'"
+      ReferenceOutputAssembly="false"
+      SkipGetTargetFrameworkProperties="true" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(WindowsPackageType)' == 'MSIX'">
+    <Content Include="../../../Resources/Brand/CrosioIcon.png">
+      <Link>Assets\CrosioIcon.png</Link>
+      <TargetPath>Assets\CrosioIcon.png</TargetPath>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="$(CrosioShellExtensionOutput)" Condition="'$(OS)' == 'Windows_NT'">
+      <Link>ShellExtensions\Crosio.Windows.ShellExtension.dll</Link>
+      <TargetPath>ShellExtensions\Crosio.Windows.ShellExtension.dll</TargetPath>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
+
+  <Target
+    Name="ValidateCrosioPackagePayload"
+    BeforeTargets="_GenerateAppxPackageFile"
+    Condition="'$(WindowsPackageType)' == 'MSIX' and '$(OS)' == 'Windows_NT'">
+    <Error
+      Condition="'$(CrosioVCRuntimeDirectory)' == ''"
+      Text="CrosioVCRuntimeDirectory must point to the matching Microsoft.VC143.CRT directory." />
+    <Error
+      Condition="!Exists('$(CrosioVCRuntimeDirectory)\concrt140.dll') or !Exists('$(CrosioVCRuntimeDirectory)\msvcp140.dll') or !Exists('$(CrosioVCRuntimeDirectory)\vcruntime140.dll') or !Exists('$(CrosioVCRuntimeDirectory)\vcruntime140_1.dll')"
+      Text="The matching app-local Microsoft.VC143.CRT payload is incomplete: $(CrosioVCRuntimeDirectory)" />
+    <Error
+      Condition="!Exists('$(CrosioShellExtensionOutput)')"
+      Text="The packaged Explorer command DLL is missing: $(CrosioShellExtensionOutput)" />
+  </Target>
+</Project>

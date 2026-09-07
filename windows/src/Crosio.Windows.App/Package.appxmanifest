@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Package
+  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:com="http://schemas.microsoft.com/appx/manifest/com/windows10"
+  xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10"
+  xmlns:desktop4="http://schemas.microsoft.com/appx/manifest/desktop/windows10/4"
+  xmlns:desktop5="http://schemas.microsoft.com/appx/manifest/desktop/windows10/5"
+  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  IgnorableNamespaces="uap com desktop desktop4 desktop5 rescap">
+
+  <!--
+    The 2.25 OID makes CI's unsigned package explicitly installable with
+    Add-AppxPackage -AllowUnsigned on Windows 11. A signed build replaces the
+    Publisher with the signing certificate subject before MSBuild runs.
+  -->
+  <Identity
+    Name="Crosio.Windows"
+    Publisher="CN=Crosio, OID.2.25.311729368913984317654407730594956997722=1"
+    Version="0.1.0.0" />
+
+  <Properties>
+    <DisplayName>Crosio</DisplayName>
+    <PublisherDisplayName>Crosio</PublisherDisplayName>
+    <Logo>Assets\CrosioIcon.png</Logo>
+  </Properties>
+
+  <Dependencies>
+    <TargetDeviceFamily
+      Name="Windows.Desktop"
+      MinVersion="10.0.22000.0"
+      MaxVersionTested="10.0.26100.0" />
+  </Dependencies>
+
+  <Resources>
+    <Resource Language="zh-CN" />
+    <Resource Language="en-US" />
+  </Resources>
+
+  <Applications>
+    <Application
+      Id="App"
+      Executable="$targetnametoken$.exe"
+      EntryPoint="$targetentrypoint$">
+      <uap:VisualElements
+        AppListEntry="default"
+        BackgroundColor="transparent"
+        Description="Crosio 截图、录屏、翻译、压缩与局域网共享工具"
+        DisplayName="Crosio"
+        Square150x150Logo="Assets\CrosioIcon.png"
+        Square44x44Logo="Assets\CrosioIcon.png" />
+
+      <Extensions>
+        <uap:Extension Category="windows.protocol">
+          <uap:Protocol Name="crosio">
+            <uap:DisplayName>Crosio</uap:DisplayName>
+          </uap:Protocol>
+        </uap:Extension>
+
+        <uap:Extension Category="windows.fileTypeAssociation">
+          <uap:FileTypeAssociation Name="crosio.images">
+            <uap:DisplayName>使用 Crosio 自动压缩</uap:DisplayName>
+            <uap:Logo>Assets\CrosioIcon.png</uap:Logo>
+            <uap:SupportedFileTypes>
+              <uap:FileType>.jpg</uap:FileType>
+              <uap:FileType>.jpeg</uap:FileType>
+              <uap:FileType>.jpe</uap:FileType>
+              <uap:FileType>.jfif</uap:FileType>
+              <uap:FileType>.png</uap:FileType>
+              <uap:FileType>.heic</uap:FileType>
+              <uap:FileType>.heif</uap:FileType>
+              <uap:FileType>.tif</uap:FileType>
+              <uap:FileType>.tiff</uap:FileType>
+            </uap:SupportedFileTypes>
+          </uap:FileTypeAssociation>
+        </uap:Extension>
+
+        <desktop:Extension
+          Category="windows.startupTask"
+          Executable="Crosio.exe"
+          EntryPoint="Windows.FullTrustApplication">
+          <desktop:StartupTask
+            TaskId="CrosioStartupTask"
+            Enabled="false"
+            DisplayName="Crosio" />
+        </desktop:Extension>
+
+        <com:Extension Category="windows.comServer">
+          <com:ComServer>
+            <com:SurrogateServer DisplayName="Crosio shell commands">
+              <com:Class
+                Id="6EA97827-5B42-4E82-8ABC-4FC22D3BE129"
+                Path="ShellExtensions\Crosio.Windows.ShellExtension.dll"
+                ThreadingModel="STA" />
+            </com:SurrogateServer>
+          </com:ComServer>
+        </com:Extension>
+
+        <desktop4:Extension Category="windows.fileExplorerContextMenus">
+          <desktop4:FileExplorerContextMenus>
+            <desktop5:ItemType Type="*">
+              <desktop5:Verb
+                Id="Crosio.CopyPath.File"
+                Clsid="6EA97827-5B42-4E82-8ABC-4FC22D3BE129" />
+            </desktop5:ItemType>
+            <desktop5:ItemType Type="Directory">
+              <desktop5:Verb
+                Id="Crosio.CopyPath.Directory"
+                Clsid="6EA97827-5B42-4E82-8ABC-4FC22D3BE129" />
+            </desktop5:ItemType>
+          </desktop4:FileExplorerContextMenus>
+        </desktop4:Extension>
+      </Extensions>
+    </Application>
+  </Applications>
+
+  <Capabilities>
+    <Capability Name="internetClient" />
+    <Capability Name="internetClientServer" />
+    <Capability Name="privateNetworkClientServer" />
+    <rescap:Capability Name="runFullTrust" />
+  </Capabilities>
+</Package>
