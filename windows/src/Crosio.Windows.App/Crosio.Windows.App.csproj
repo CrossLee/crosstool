@@ -29,18 +29,18 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="$(PkgMicrosoft_WindowsAppSDK)/license.txt">
+    <None Include="$(PkgMicrosoft_WindowsAppSDK)/license.txt">
       <Link>Licenses\Microsoft.WindowsAppSDK-LICENSE.txt</Link>
       <TargetPath>Licenses\Microsoft.WindowsAppSDK-LICENSE.txt</TargetPath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-    </Content>
-    <Content Include="$(PkgMicrosoft_WindowsAppSDK)/NOTICE.txt">
+    </None>
+    <None Include="$(PkgMicrosoft_WindowsAppSDK)/NOTICE.txt">
       <Link>Licenses\Microsoft.WindowsAppSDK-NOTICE.txt</Link>
       <TargetPath>Licenses\Microsoft.WindowsAppSDK-NOTICE.txt</TargetPath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-    </Content>
+    </None>
   </ItemGroup>
 
   <ItemGroup>

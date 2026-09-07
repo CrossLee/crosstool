@@ -24,6 +24,8 @@ jobs:
     timeout-minutes: 20
     env:
       HAS_WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 != '' }}
+    outputs:
+      package_version: ${{ steps.package_version.outputs.version }}
 
     steps:
       - name: Checkout
@@ -109,3 +111,22 @@ jobs:
         if: always() && steps.signing_certificate.outputs.path != ''
         shell: pwsh
         run: Remove-Item -LiteralPath "${{ steps.signing_certificate.outputs.path }}" -Force -ErrorAction SilentlyContinue
+
+  install-windows11-arm64:
+    needs: verify-windows
+    runs-on: windows-11-arm
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download the MSIX test bundle
+        uses: actions/download-artifact@v4
+        with:
+          pattern: Crosio-windows-${{ needs.verify-windows.outputs.package_version }}-*
+          merge-multiple: true
+          path: windows/artifacts/install-test
+
+      - name: Install and launch the registered Windows 11 ARM64 app
+        shell: powershell
+        run: .\windows\scripts\Test-MsixInstallation.ps1 -PackageDirectory .\windows\artifacts\install-test

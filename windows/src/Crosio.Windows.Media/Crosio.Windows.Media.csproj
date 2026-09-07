@@ -19,11 +19,9 @@
 
   <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">
     <PackageReference Include="ScreenRecorderLib" Version="7.0.0" GeneratePathProperty="true" />
-    <None Include="$(PkgScreenRecorderLib)/build/$(Platform)/ScreenRecorderLib.dll"
-          Link="ScreenRecorderLib.dll"
-          CopyToOutputDirectory="PreserveNewest"
-          CopyToPublishDirectory="PreserveNewest"
-          Visible="false" />
+    <!-- The package injects a copy-local assembly reference. Adding the same
+         DLL as a None/Content item duplicates it when an app publishes this
+         project transitively (NETSDK1152). Keep the assembly reference only. -->
     <None Include="$(PkgScreenRecorderLib)/LICENSE"
           Link="Licenses/ScreenRecorderLib-LICENSE.txt"
           CopyToOutputDirectory="PreserveNewest"
