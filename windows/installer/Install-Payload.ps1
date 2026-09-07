@@ -34,6 +34,7 @@ try {
     if ($architecture -eq "Unsupported") {
         throw "当前系统架构不受支持。Crosio 支持 x64 和 ARM64。"
     }
+    $expectedArchitecture = if ($architecture -eq "ARM64") { "Arm64" } else { "X64" }
     # MSIX registers for the executing account. Over-the-shoulder UAC must not
     # silently install into a different administrator's account.
     Add-Type -TypeDefinition @"
@@ -127,9 +128,7 @@ namespace Crosio.Setup
 
         $signature = Get-AuthenticodeSignature -FilePath $bundlePath
         if ($signature.Status -eq [System.Management.Automation.SignatureStatus]::Valid) {
-            # Add-AppxPackage performs an in-place update and retains app data.
-            # No Remove-AppxPackage, forced shutdown, or downgrade override.
-            Add-AppxPackage -Path $bundlePath -ErrorAction Stop
+            $allowUnsignedDeployment = $false
         }
         elseif ($signature.Status -eq [System.Management.Automation.SignatureStatus]::NotSigned -and
             $metadata.allowUnsignedTestPackage) {
@@ -139,16 +138,34 @@ namespace Crosio.Setup
             if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
                 throw "测试版安装需要在系统授权窗口中允许管理员权限。"
             }
-            Add-AppxPackage -Path $bundlePath -AllowUnsigned -ErrorAction Stop
+            $allowUnsignedDeployment = $true
         }
         else {
             throw "安装包签名无效或不受信任（$($signature.Status)），已停止安装。请使用官方安装包。"
+        }
+
+        # Reopening the same installer is harmless only when the existing
+        # registration is healthy and exactly matches. The embedded payload's
+        # hash, identity, both architectures, and signature were checked above.
+        $alreadyInstalled = $installed.Count -eq 1 -and
+            $installed[0].Publisher -eq $metadata.publisher -and
+            [version]$installed[0].Version -eq $expectedVersion -and
+            $installed[0].Architecture.ToString() -eq $expectedArchitecture -and
+            $installed[0].Status.ToString() -eq "Ok"
+        if (-not $alreadyInstalled) {
+            # Add-AppxPackage performs an in-place update and retains app data.
+            # No Remove-AppxPackage, forced shutdown, or downgrade override.
+            if ($allowUnsignedDeployment) {
+                Add-AppxPackage -Path $bundlePath -AllowUnsigned -ErrorAction Stop
+            }
+            else {
+                Add-AppxPackage -Path $bundlePath -ErrorAction Stop
+            }
         }
     }
 
     $installed = @(Get-AppxPackage -Name "Crosio.Windows" -ErrorAction Stop |
         Where-Object { $_.Publisher -eq $metadata.publisher -and [version]$_.Version -eq $expectedVersion })
-    $expectedArchitecture = if ($architecture -eq "ARM64") { "Arm64" } else { "X64" }
     if ($installed.Count -ne 1 -or $installed[0].Architecture.ToString() -ne $expectedArchitecture -or
         $installed[0].Status.ToString() -ne "Ok") {
         throw "Windows 未能确认 Crosio 已正确安装。请关闭正在运行的 Crosio 后重试。"

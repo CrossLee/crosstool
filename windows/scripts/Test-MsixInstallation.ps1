@@ -101,9 +101,30 @@ $script:SetupWindowTitle = "Crosio " + (ConvertFrom-UnicodeCodePoints @(0x5B89, 
 $script:SetupInstallButtonPrefix = ConvertFrom-UnicodeCodePoints @(0x5B89, 0x88C5)
 $script:SetupFinishButtonPrefix = ConvertFrom-UnicodeCodePoints @(0x5B8C, 0x6210)
 $script:SetupFailureText = ConvertFrom-UnicodeCodePoints @(0x5B89, 0x88C5, 0x5931, 0x8D25)
+$script:SetupIncompleteText = ConvertFrom-UnicodeCodePoints @(0x5B89, 0x88C5, 0x672A, 0x5B8C, 0x6210)
+$script:SetupSystemInstallerText = ConvertFrom-UnicodeCodePoints @(0x7CFB, 0x7EDF, 0x5B89, 0x88C5, 0x670D, 0x52A1)
 $script:SetupRunOptionPrefix = (ConvertFrom-UnicodeCodePoints @(0x7ACB, 0x5373, 0x6253, 0x5F00)) + " Crosio"
 $script:SetupCompletionText = (ConvertFrom-UnicodeCodePoints @(
     0x8BF7, 0x5728, 0x5F00, 0x59CB, 0x83DC, 0x5355, 0x4E2D, 0x641C, 0x7D22)) + " Crosio"
+
+function Format-SetupDiagnosticText {
+    param(
+        [AllowNull()]
+        [AllowEmptyString()]
+        [string]$Text
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Text)) {
+        return "<none>"
+    }
+
+    $singleLine = ($Text -replace "\s+", " ").Trim()
+    if ($singleLine.Length -gt 1000) {
+        return $singleLine.Substring(0, 1000) + "..."
+    }
+
+    return $singleLine
+}
 
 function Add-OwnedInstallerProcessHandle {
     param(
@@ -160,7 +181,8 @@ function Update-OwnedInstallerProcesses {
             $candidateProcessId = [int]$candidate.ProcessId
             $parentProcessId = [int]$candidate.ParentProcessId
             if ($StartTimes.ContainsKey($candidateProcessId) -or
-                -not $StartTimes.ContainsKey($parentProcessId)) {
+                -not $StartTimes.ContainsKey($parentProcessId) -or
+                -not $Handles.ContainsKey($parentProcessId)) {
                 continue
             }
 
@@ -169,8 +191,27 @@ function Update-OwnedInstallerProcesses {
                 continue
             }
 
+            # ParentProcessId is only a numeric snapshot and can be reused.
+            # Trust it only while the retained handle proves that the exact
+            # owned parent was alive when this candidate was created.
+            try {
+                $ownedParent = $Handles[$parentProcessId]
+                $ownedParent.Refresh()
+                if ($ownedParent.HasExited -and
+                    $createdUtc -gt $ownedParent.ExitTime.ToUniversalTime()) {
+                    continue
+                }
+            }
+            catch {
+                continue
+            }
+
             $StartTimes[$candidateProcessId] = $createdUtc
             Add-OwnedInstallerProcessHandle -StartTimes $StartTimes -Handles $Handles -ProcessId $candidateProcessId
+            if (-not $Handles.ContainsKey($candidateProcessId)) {
+                [void]$StartTimes.Remove($candidateProcessId)
+                continue
+            }
             $added = $true
         }
     }
@@ -229,10 +270,14 @@ function Get-OwnedVisibleWindows {
             }
 
             Add-OwnedInstallerProcessHandle -StartTimes $StartTimes -Handles $Handles -ProcessId $windowProcessId
-            if ($Handles.ContainsKey($windowProcessId) -and
-                $window.Current.NativeWindowHandle -ne 0 -and
-                -not $window.Current.IsOffscreen) {
-                Write-Output $window
+            if ($Handles.ContainsKey($windowProcessId)) {
+                $ownedWindowProcess = $Handles[$windowProcessId]
+                $ownedWindowProcess.Refresh()
+                if (-not $ownedWindowProcess.HasExited -and
+                    $window.Current.NativeWindowHandle -ne 0 -and
+                    -not $window.Current.IsOffscreen) {
+                    Write-Output $window
+                }
             }
         }
         catch [System.Windows.Automation.ElementNotAvailableException] {
@@ -349,6 +394,7 @@ function Wait-ForSetupAction {
     )
 
     $noProcessSince = $null
+    $lastOwnedInstallerText = $null
     while ([DateTime]::UtcNow -lt $DeadlineUtc) {
         Update-OwnedInstallerProcesses -StartTimes $StartTimes -Handles $Handles -NotBeforeUtc $NotBeforeUtc
         $visibleWindows = @(Get-OwnedVisibleWindows -StartTimes $StartTimes -Handles $Handles)
@@ -356,14 +402,22 @@ function Wait-ForSetupAction {
 
         foreach ($window in $visibleWindows) {
             try {
-                if ($window.Current.Name -ne $script:SetupWindowTitle) {
+                $windowTitle = [string]$window.Current.Name
+                if (-not $windowTitle.StartsWith("Crosio", [StringComparison]::OrdinalIgnoreCase)) {
                     continue
                 }
 
                 $pageText = Get-AutomationElementText -Window $window
+                $lastOwnedInstallerText = Format-SetupDiagnosticText -Text ($windowTitle + " | " + $pageText)
                 if ($pageText.Contains($script:SetupFailureText) -or
-                    $pageText -match "Installation failed|Setup failed") {
-                    throw "The Crosio GUI installer displayed its installation-failed page during $Stage."
+                    $pageText.Contains($script:SetupIncompleteText) -or
+                    $pageText.Contains($script:SetupSystemInstallerText) -or
+                    $pageText -match "Installation failed|Setup failed|installation was not completed") {
+                    throw "The Crosio GUI installer displayed an error during $Stage. Installer UI: $lastOwnedInstallerText"
+                }
+
+                if ($windowTitle -ne $script:SetupWindowTitle) {
+                    continue
                 }
 
                 $button = Find-EnabledSetupButton -Window $window -NamePrefixes $ButtonPrefixes
@@ -387,13 +441,15 @@ function Wait-ForSetupAction {
             $noProcessSince = [DateTime]::UtcNow
         }
         elseif (([DateTime]::UtcNow - $noProcessSince).TotalSeconds -ge 1) {
-            throw "The Crosio GUI installer exited before the $Stage action became available."
+            $diagnosticText = Format-SetupDiagnosticText -Text $lastOwnedInstallerText
+            throw "The Crosio GUI installer exited before the $Stage action became available. Last installer UI: $diagnosticText"
         }
 
         Start-Sleep -Milliseconds 100
     }
 
-    throw "The Crosio GUI installer did not expose the $Stage action within $InstallerTimeoutSeconds seconds."
+    $diagnosticText = Format-SetupDiagnosticText -Text $lastOwnedInstallerText
+    throw "The Crosio GUI installer did not expose the $Stage action within $InstallerTimeoutSeconds seconds. Last installer UI: $diagnosticText"
 }
 
 function Invoke-SetupAction {
@@ -701,77 +757,94 @@ $failure = $null
 $cleanupFailures = [System.Collections.Generic.List[string]]::new()
 $activatedProcessId = $null
 $mainWindow = [IntPtr]::Zero
-$setupRootProcess = $null
-$setupRootProcessId = 0
-$setupUiProcessIds = [System.Collections.Generic.HashSet[int]]::new()
-$setupOwnedStartTimes = @{}
-$setupOwnedHandles = @{}
-$setupNotBeforeUtc = [DateTime]::MinValue
+$setupAttempts = [System.Collections.Generic.List[object]]::new()
 try {
     $installationAttempted = $true
     if ($UseSetup) {
-        $setupNotBeforeUtc = [DateTime]::UtcNow.AddSeconds(-1)
-        $setupDeadlineUtc = [DateTime]::UtcNow.AddSeconds($InstallerTimeoutSeconds)
-        $setupRootProcess = Start-Process `
-            -FilePath $setupPath `
-            -WorkingDirectory $releaseDirectory `
-            -PassThru
-        $setupRootProcessId = $setupRootProcess.Id
-        $null = $setupRootProcess.Handle
-        $setupRootStartUtc = $setupRootProcess.StartTime.ToUniversalTime()
-        $setupOwnedStartTimes[$setupRootProcessId] = $setupRootStartUtc
-        $setupOwnedHandles[$setupRootProcessId] = $setupRootProcess
+        foreach ($setupAttemptNumber in 1..2) {
+            # Each run gets an isolated ownership graph. Exited processes from
+            # attempt one must never satisfy or terminate attempt two, even if
+            # Windows reuses a PID between the two launches.
+            $setupNotBeforeUtc = [DateTime]::UtcNow.AddSeconds(-1)
+            $setupDeadlineUtc = [DateTime]::UtcNow.AddSeconds($InstallerTimeoutSeconds)
+            $setupUiProcessIds = [System.Collections.Generic.HashSet[int]]::new()
+            $setupOwnedStartTimes = @{}
+            $setupOwnedHandles = @{}
+            $setupRootProcess = Start-Process `
+                -FilePath $setupPath `
+                -WorkingDirectory $releaseDirectory `
+                -PassThru
+            $setupRootProcessId = $setupRootProcess.Id
+            $null = $setupRootProcess.Handle
+            $setupRootStartUtc = $setupRootProcess.StartTime.ToUniversalTime()
+            $setupOwnedStartTimes[$setupRootProcessId] = $setupRootStartUtc
+            $setupOwnedHandles[$setupRootProcessId] = $setupRootProcess
+            $setupAttemptState = [pscustomobject]@{
+                Number = $setupAttemptNumber
+                RootProcessId = $setupRootProcessId
+                NotBeforeUtc = $setupNotBeforeUtc
+                StartTimes = $setupOwnedStartTimes
+                Handles = $setupOwnedHandles
+                Completed = $false
+            }
+            [void]$setupAttempts.Add($setupAttemptState)
 
-        $installAction = Wait-ForSetupAction `
-            -Stage "Install" `
-            -ButtonPrefixes @($script:SetupInstallButtonPrefix, "Install") `
-            -DeadlineUtc $setupDeadlineUtc `
-            -NotBeforeUtc $setupNotBeforeUtc `
-            -StartTimes $setupOwnedStartTimes `
-            -Handles $setupOwnedHandles
-        [void]$setupUiProcessIds.Add($installAction.ProcessId)
-        Invoke-SetupAction -Button $installAction.Button -Stage "Install"
+            $installAction = Wait-ForSetupAction `
+                -Stage "Install (attempt $setupAttemptNumber)" `
+                -ButtonPrefixes @($script:SetupInstallButtonPrefix, "Install") `
+                -DeadlineUtc $setupDeadlineUtc `
+                -NotBeforeUtc $setupNotBeforeUtc `
+                -StartTimes $setupOwnedStartTimes `
+                -Handles $setupOwnedHandles
+            [void]$setupUiProcessIds.Add($installAction.ProcessId)
+            Invoke-SetupAction -Button $installAction.Button -Stage "Install (attempt $setupAttemptNumber)"
 
-        $finishAction = Wait-ForSetupAction `
-            -Stage "Finish" `
-            -ButtonPrefixes @($script:SetupFinishButtonPrefix, "Finish") `
-            -DeadlineUtc $setupDeadlineUtc `
-            -NotBeforeUtc $setupNotBeforeUtc `
-            -StartTimes $setupOwnedStartTimes `
-            -Handles $setupOwnedHandles
-        [void]$setupUiProcessIds.Add($finishAction.ProcessId)
-        if (-not $finishAction.PageText.Contains($script:SetupCompletionText)) {
-            throw "The Crosio GUI installer did not reach its expected successful Finish page."
-        }
-        Assert-SetupRunOptionUnchecked -Window $finishAction.Window
-        Invoke-SetupAction -Button $finishAction.Button -Stage "Finish"
+            $finishAction = Wait-ForSetupAction `
+                -Stage "Finish (attempt $setupAttemptNumber)" `
+                -ButtonPrefixes @($script:SetupFinishButtonPrefix, "Finish") `
+                -DeadlineUtc $setupDeadlineUtc `
+                -NotBeforeUtc $setupNotBeforeUtc `
+                -StartTimes $setupOwnedStartTimes `
+                -Handles $setupOwnedHandles
+            [void]$setupUiProcessIds.Add($finishAction.ProcessId)
+            if (-not $finishAction.PageText.Contains($script:SetupCompletionText)) {
+                throw "The Crosio GUI installer did not reach its expected successful Finish page on attempt $setupAttemptNumber."
+            }
+            Assert-SetupRunOptionUnchecked -Window $finishAction.Window
+            Invoke-SetupAction -Button $finishAction.Button -Stage "Finish (attempt $setupAttemptNumber)"
 
-        Wait-ForOwnedInstallerExit `
-            -DeadlineUtc $setupDeadlineUtc `
-            -NotBeforeUtc $setupNotBeforeUtc `
-            -StartTimes $setupOwnedStartTimes `
-            -Handles $setupOwnedHandles
+            Wait-ForOwnedInstallerExit `
+                -DeadlineUtc $setupDeadlineUtc `
+                -NotBeforeUtc $setupNotBeforeUtc `
+                -StartTimes $setupOwnedStartTimes `
+                -Handles $setupOwnedHandles
 
-        $exitProcessIds = @($setupRootProcessId) + @($setupUiProcessIds)
-        foreach ($exitProcessId in @($exitProcessIds | Select-Object -Unique)) {
-            if (-not $setupOwnedHandles.ContainsKey([int]$exitProcessId)) {
-                throw "The GUI installer did not retain an exact handle for UI process $exitProcessId."
+            $exitProcessIds = @($setupRootProcessId) + @($setupUiProcessIds)
+            foreach ($exitProcessId in @($exitProcessIds | Select-Object -Unique)) {
+                if (-not $setupOwnedHandles.ContainsKey([int]$exitProcessId)) {
+                    throw "GUI installer attempt $setupAttemptNumber did not retain an exact handle for UI process $exitProcessId."
+                }
+
+                $exitProcess = $setupOwnedHandles[[int]$exitProcessId]
+                $exitProcess.Refresh()
+                if (-not $exitProcess.HasExited) {
+                    throw "GUI installer attempt $setupAttemptNumber process $exitProcessId remained active after Finish."
+                }
+                if ($exitProcess.ExitCode -ne 0) {
+                    throw "GUI installer attempt $setupAttemptNumber process $exitProcessId returned exit code $($exitProcess.ExitCode)."
+                }
             }
 
-            $exitProcess = $setupOwnedHandles[[int]$exitProcessId]
-            $exitProcess.Refresh()
-            if (-not $exitProcess.HasExited) {
-                throw "The GUI installer process $exitProcessId remained active after Finish."
+            if (@(Get-Process -Name "Crosio" -ErrorAction SilentlyContinue).Count -ne 0) {
+                throw "GUI installer attempt $setupAttemptNumber launched Crosio even though its optional launch checkbox was clear."
             }
-            if ($exitProcess.ExitCode -ne 0) {
-                throw "The GUI installer process $exitProcessId returned exit code $($exitProcess.ExitCode)."
+            $setupAttemptState.Completed = $true
+            foreach ($completedHandle in @($setupOwnedHandles.Values)) {
+                $completedHandle.Dispose()
             }
+            $setupOwnedHandles.Clear()
+            Write-Host "Crosio Setup.exe GUI attempt $setupAttemptNumber of 2 completed through UI Automation."
         }
-
-        if (@(Get-Process -Name "Crosio" -ErrorAction SilentlyContinue).Count -ne 0) {
-            throw "The GUI installer launched Crosio even though its optional launch checkbox was clear."
-        }
-        Write-Host "Crosio Setup.exe GUI flow completed through UI Automation."
     }
     else {
         & $installerPath -PackagePath $bundles[0].FullName
@@ -844,20 +917,26 @@ finally {
         try { $activation.Stop() }
         catch { $cleanupFailures.Add("Process cleanup: $($_.Exception.Message)") }
     }
-    if ($UseSetup -and $null -ne $setupRootProcess) {
-        try {
-            Update-OwnedInstallerProcesses `
-                -StartTimes $setupOwnedStartTimes `
-                -Handles $setupOwnedHandles `
-                -NotBeforeUtc $setupNotBeforeUtc
+    foreach ($setupAttemptState in @($setupAttempts)) {
+        if (-not $setupAttemptState.Completed) {
+            try {
+                Update-OwnedInstallerProcesses `
+                    -StartTimes $setupAttemptState.StartTimes `
+                    -Handles $setupAttemptState.Handles `
+                    -NotBeforeUtc $setupAttemptState.NotBeforeUtc
+            }
+            catch {
+                $cleanupFailures.Add("Installer attempt $($setupAttemptState.Number) process discovery cleanup: $($_.Exception.Message)")
+            }
+            try {
+                Stop-OwnedInstallerProcesses `
+                    -Handles $setupAttemptState.Handles `
+                    -RootProcessId $setupAttemptState.RootProcessId
+            }
+            catch {
+                $cleanupFailures.Add("Installer attempt $($setupAttemptState.Number) process cleanup: $($_.Exception.Message)")
+            }
         }
-        catch { $cleanupFailures.Add("Installer process discovery cleanup: $($_.Exception.Message)") }
-        try {
-            Stop-OwnedInstallerProcesses `
-                -Handles $setupOwnedHandles `
-                -RootProcessId $setupRootProcessId
-        }
-        catch { $cleanupFailures.Add("Installer process cleanup: $($_.Exception.Message)") }
     }
     if ($installationAttempted) {
         try {
@@ -875,9 +954,13 @@ finally {
         }
         catch { $cleanupFailures.Add("Package cleanup: $($_.Exception.Message)") }
     }
-    foreach ($ownedInstallerHandle in @($setupOwnedHandles.Values)) {
-        try { $ownedInstallerHandle.Dispose() }
-        catch { $cleanupFailures.Add("Installer handle cleanup: $($_.Exception.Message)") }
+    foreach ($setupAttemptState in @($setupAttempts)) {
+        foreach ($ownedInstallerHandle in @($setupAttemptState.Handles.Values)) {
+            try { $ownedInstallerHandle.Dispose() }
+            catch {
+                $cleanupFailures.Add("Installer attempt $($setupAttemptState.Number) handle cleanup: $($_.Exception.Message)")
+            }
+        }
     }
 }
 
