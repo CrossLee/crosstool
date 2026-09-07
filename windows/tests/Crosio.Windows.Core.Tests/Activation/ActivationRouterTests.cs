@@ -18,6 +18,41 @@ public sealed class ActivationRouterTests
     }
 
     [Fact]
+    public void UnpackagedFullCommandLineLaunchDoesNotTreatExecutableAsAFile()
+    {
+        const string executable = @"C:\Program Files\Crosio\Crosio.exe";
+        var arguments = CommandLineTokenizer.TokenizeLaunchArguments(
+            $"\"{executable}\"",
+            executable);
+
+        var route = _router.Route(ActivationEnvelope.CommandLine(arguments));
+
+        Assert.Equal(ActivationOperation.Navigate, route.Operation);
+        Assert.Equal(FeatureId.Home, route.Feature);
+        Assert.True(route.ShouldShowMainWindow);
+        Assert.Empty(route.Inputs);
+    }
+
+    [Theory]
+    [InlineData("--copy-paths", ActivationOperation.CopyPaths)]
+    [InlineData("--compress-images", ActivationOperation.CompressImages)]
+    public void UnpackagedFullCommandLinePreservesExplicitSilentOperations(
+        string operation,
+        ActivationOperation expectedOperation)
+    {
+        const string executable = @"C:\Program Files\Crosio\Crosio.exe";
+        var arguments = CommandLineTokenizer.TokenizeLaunchArguments(
+            $"\"{executable}\" {operation} \"C:\\课件\\图片 1.png\"",
+            executable);
+
+        var route = _router.Route(ActivationEnvelope.CommandLine(arguments));
+
+        Assert.Equal(expectedOperation, route.Operation);
+        Assert.False(route.ShouldShowMainWindow);
+        Assert.Equal(@"C:\课件\图片 1.png", Assert.Single(route.Inputs));
+    }
+
+    [Fact]
     public void FileActivationCompressesWithoutShowingMainWindow()
     {
         var paths = new[] { @"C:\课件\图片 1.png", @"C:\课件\图片 2.jpg" };

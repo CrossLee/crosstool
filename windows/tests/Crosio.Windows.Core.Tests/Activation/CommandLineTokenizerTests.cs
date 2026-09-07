@@ -22,4 +22,24 @@ public sealed class CommandLineTokenizerTests
 
         Assert.Equal(new[] { "--feature", "capture-\"region" }, arguments);
     }
+
+    [Fact]
+    public void KeepsArgumentOnlyLaunchPayloadUnchanged()
+    {
+        var arguments = CommandLineTokenizer.TokenizeLaunchArguments(
+            "--show",
+            @"C:\Program Files\Crosio\Crosio.exe");
+
+        Assert.Equal(new[] { "--show" }, arguments);
+    }
+
+    [Fact]
+    public void MatchesExecutableNameCaseInsensitivelyWhenPathsDiffer()
+    {
+        var arguments = CommandLineTokenizer.TokenizeLaunchArguments(
+            "crosio.EXE --feature capture-region",
+            @"C:\Program Files\Crosio\Crosio.exe");
+
+        Assert.Equal(new[] { "--feature", "capture-region" }, arguments);
+    }
 }

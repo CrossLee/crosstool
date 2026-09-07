@@ -199,7 +199,10 @@ foreach ($requiredProjectReference in @(
 
 $mediaProject = Get-Content -LiteralPath $mediaProjectPath -Raw
 Assert-True ($mediaProject -match '<PackageReference Include="ScreenRecorderLib" Version="7\.0\.0"[^>]*/>') "The production recording backend must pin ScreenRecorderLib 7.0.0."
-Assert-True ($mediaProject -match 'PkgScreenRecorderLib.*build/\$\(Platform\)/ScreenRecorderLib\.dll') "The matching ScreenRecorderLib native assembly is not copied explicitly."
+# ScreenRecorderLib's NuGet target injects the copy-local assembly reference.
+# A second Content/None entry duplicates that DLL during transitive publish.
+# The real publish/MSIX checks below verify presence and PE architecture.
+Assert-True ($mediaProject -notmatch '<(?:None|Content)\s+Include="[^"]*ScreenRecorderLib\.dll"') "ScreenRecorderLib must not be duplicated as an explicit content payload."
 Assert-True ($mediaProject -match 'ScreenRecorderLib-LICENSE\.txt') "The ScreenRecorderLib license is not copied into app outputs."
 Assert-True ($mediaProject -match '<Platforms>x64;ARM64</Platforms>') "The recording backend must expose the two package architectures."
 

@@ -31,7 +31,12 @@ internal static class WindowsActivationAdapter
         if (arguments.Kind == ExtendedActivationKind.Launch
             && arguments.Data is ILaunchActivatedEventArgs launchArguments)
         {
-            var tokens = CommandLineTokenizer.Tokenize(launchArguments.Arguments);
+            // For an unpackaged Win32 launch, Windows App SDK 1.8 builds this
+            // value from GetCommandLine(), including argv[0]. Do not route the
+            // Crosio executable itself as an implicit file-compression input.
+            var tokens = CommandLineTokenizer.TokenizeLaunchArguments(
+                launchArguments.Arguments,
+                Environment.ProcessPath);
             return tokens.Count == 0
                 ? ActivationEnvelope.Launch()
                 : ActivationEnvelope.CommandLine(tokens);
