@@ -133,3 +133,268 @@ jobs:
       - name: Install and launch the registered Windows 11 ARM64 app
         shell: powershell
         run: .\windows\scripts\Test-MsixInstallation.ps1 -PackageDirectory .\windows\artifacts\install-test
+
+  publish-preview:
+    needs:
+      - verify-windows
+      - install-windows11-arm64
+    if: >-
+      ${{
+        needs.verify-windows.result == 'success' &&
+        needs.install-windows11-arm64.result == 'success' &&
+        github.event_name == 'push' &&
+        github.ref == 'refs/heads/codex/windows-native-preview' &&
+        startsWith(github.event.head_commit.message, 'Publish Windows preview')
+      }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      RELEASE_VERSION: ${{ needs.verify-windows.outputs.package_version }}
+      RELEASE_TARGET_SHA: ${{ github.sha }}
+
+    steps:
+      - name: Checkout the exact verified commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Download this run's unsigned release artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: Crosio-windows-${{ needs.verify-windows.outputs.package_version }}-unsigned-test
+          path: windows/artifacts/preview-source
+
+      - name: Assemble and validate the user preview assets
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          export LC_ALL=C
+
+          version="$RELEASE_VERSION"
+          target_sha="$RELEASE_TARGET_SHA"
+          source_dir="$GITHUB_WORKSPACE/windows/artifacts/preview-source"
+          notes_file="$GITHUB_WORKSPACE/windows/release/WINDOWS_PREVIEW_NOTES.zh-CN.md"
+
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid package version from verify-windows: $version" >&2
+            exit 1
+          fi
+          if [[ ! "$target_sha" =~ ^([0-9a-f]{40}|[0-9a-f]{64})$ ]]; then
+            echo "Invalid release target SHA: $target_sha" >&2
+            exit 1
+          fi
+          if [[ ! -f "$notes_file" ]]; then
+            echo "Missing Windows preview release notes: $notes_file" >&2
+            exit 1
+          fi
+
+          bundle_name="Crosio-Windows-${version}-unsigned-test.msixbundle"
+          x64_name="Crosio-Windows-${version}-x64-unsigned-test.msix"
+          arm64_name="Crosio-Windows-${version}-arm64-unsigned-test.msix"
+          zip_name="Crosio-Windows-${version}-unsigned-preview.zip"
+          release_tag="windows-v${version}-preview"
+
+          preview_root="$(mktemp -d "$RUNNER_TEMP/crosio-preview.XXXXXX")"
+          package_dir="$preview_root/package"
+          asset_dir="$preview_root/assets"
+          mkdir -p "$package_dir" "$asset_dir"
+
+          expected_source_names=(
+            "$arm64_name"
+            "$bundle_name"
+            "$x64_name"
+            "Install-Crosio.ps1"
+            "SHA256SUMS.txt"
+            "TESTING.md"
+            "THIRD_PARTY_NOTICES.md"
+            "build-info.json"
+          )
+          mapfile -d '' source_entries < <(find "$source_dir" -mindepth 1 -maxdepth 1 -print0)
+          if (( ${#source_entries[@]} != ${#expected_source_names[@]} )); then
+            echo "Expected exactly ${#expected_source_names[@]} files in the release artifact; found ${#source_entries[@]}." >&2
+            exit 1
+          fi
+          for entry in "${source_entries[@]}"; do
+            if [[ ! -f "$entry" || -L "$entry" ]]; then
+              echo "Release artifact contains a non-regular file or symlink: $entry" >&2
+              exit 1
+            fi
+          done
+
+          printf '%s\n' "${expected_source_names[@]}" | sort > "$preview_root/expected-source-files.txt"
+          find "$source_dir" -mindepth 1 -maxdepth 1 -type f -printf '%f\n' | sort > "$preview_root/actual-source-files.txt"
+          if ! diff -u "$preview_root/expected-source-files.txt" "$preview_root/actual-source-files.txt"; then
+            echo "The downloaded release artifact does not have the exact expected file set." >&2
+            exit 1
+          fi
+
+          jq -e --arg version "$version" '
+            type == "object" and
+            .product == "Crosio" and
+            .version == $version and
+            .architectures == ["x64", "ARM64"] and
+            .selfContained == true and
+            .signed == false and
+            .artifactKind == "unsigned-test"
+          ' "$source_dir/build-info.json" > /dev/null
+
+          # The source manifest is written on Windows, so normalize only its
+          # line endings before GNU sha256sum validates the six hashed payloads.
+          tr -d '\r' < "$source_dir/SHA256SUMS.txt" > "$preview_root/source-SHA256SUMS.txt"
+          if grep -Evq '^[0-9a-f]{64}  [A-Za-z0-9._-]+$' "$preview_root/source-SHA256SUMS.txt"; then
+            echo "The source checksum manifest has an unexpected format." >&2
+            exit 1
+          fi
+
+          expected_source_hash_names=(
+            "$arm64_name"
+            "$bundle_name"
+            "$x64_name"
+            "Install-Crosio.ps1"
+            "TESTING.md"
+            "THIRD_PARTY_NOTICES.md"
+          )
+          printf '%s\n' "${expected_source_hash_names[@]}" | sort > "$preview_root/expected-source-hashes.txt"
+          sed -E 's/^[0-9a-f]{64}  //' "$preview_root/source-SHA256SUMS.txt" | sort > "$preview_root/actual-source-hashes.txt"
+          if ! diff -u "$preview_root/expected-source-hashes.txt" "$preview_root/actual-source-hashes.txt"; then
+            echo "The source checksum manifest does not cover the exact expected payloads." >&2
+            exit 1
+          fi
+          (
+            cd "$source_dir"
+            sha256sum --check --strict "$preview_root/source-SHA256SUMS.txt"
+          )
+
+          user_payload_names=(
+            "$bundle_name"
+            "Install-Crosio.ps1"
+            "TESTING.md"
+            "THIRD_PARTY_NOTICES.md"
+            "build-info.json"
+          )
+          for name in "${user_payload_names[@]}"; do
+            cp -- "$source_dir/$name" "$package_dir/$name"
+          done
+          (
+            cd "$package_dir"
+            sha256sum "${user_payload_names[@]}" > SHA256SUMS.txt
+            sha256sum --check --strict SHA256SUMS.txt
+            zip -q -X -0 "$asset_dir/$zip_name" "${user_payload_names[@]}" SHA256SUMS.txt
+          )
+
+          printf '%s\n' "${user_payload_names[@]}" "SHA256SUMS.txt" | sort > "$preview_root/expected-zip-files.txt"
+          unzip -Z1 "$asset_dir/$zip_name" | sort > "$preview_root/actual-zip-files.txt"
+          if ! diff -u "$preview_root/expected-zip-files.txt" "$preview_root/actual-zip-files.txt"; then
+            echo "The user ZIP does not contain the exact expected file set." >&2
+            exit 1
+          fi
+          unzip -tq "$asset_dir/$zip_name"
+
+          (
+            cd "$asset_dir"
+            sha256sum "$zip_name" > SHA256SUMS.txt
+            sha256sum --check --strict SHA256SUMS.txt
+          )
+
+          {
+            printf 'PREVIEW_ASSET_DIR=%s\n' "$asset_dir"
+            printf 'PREVIEW_RELEASE_TAG=%s\n' "$release_tag"
+            printf 'PREVIEW_ZIP_NAME=%s\n' "$zip_name"
+          } >> "$GITHUB_ENV"
+
+      - name: Upload a draft, verify cloud assets, then publish the prerelease
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          export LC_ALL=C
+
+          asset_dir="$PREVIEW_ASSET_DIR"
+          release_tag="$PREVIEW_RELEASE_TAG"
+          zip_name="$PREVIEW_ZIP_NAME"
+          notes_file="$GITHUB_WORKSPACE/windows/release/WINDOWS_PREVIEW_NOTES.zh-CN.md"
+          cloud_dir="$(mktemp -d "$RUNNER_TEMP/crosio-preview-cloud.XXXXXX")"
+
+          # --draft ensures an upload or verification failure cannot expose an
+          # empty or partially uploaded release to users.
+          gh release create "$release_tag" \
+            "$asset_dir/$zip_name" \
+            "$asset_dir/SHA256SUMS.txt" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$RELEASE_TARGET_SHA" \
+            --title "Crosio Windows v${RELEASE_VERSION} 预览版" \
+            --notes-file "$notes_file" \
+            --draft \
+            --prerelease \
+            --latest=false
+
+          gh release view "$release_tag" \
+            --repo "$GITHUB_REPOSITORY" \
+            --json assets,isDraft,isPrerelease,tagName,targetCommitish \
+            > "$cloud_dir/draft-release.json"
+          jq -e \
+            --arg tag "$release_tag" \
+            --arg sha "$RELEASE_TARGET_SHA" \
+            --arg zip "$zip_name" '
+              .tagName == $tag and
+              .targetCommitish == $sha and
+              .isDraft == true and
+              .isPrerelease == true and
+              ([.assets[].name] | sort) == (["SHA256SUMS.txt", $zip] | sort) and
+              ([.assets[] | select(.state != "uploaded" or .size <= 0)] | length) == 0
+            ' "$cloud_dir/draft-release.json" > /dev/null
+
+          gh release download "$release_tag" \
+            --repo "$GITHUB_REPOSITORY" \
+            --dir "$cloud_dir/download" \
+            --pattern "$zip_name" \
+            --pattern "SHA256SUMS.txt"
+
+          mapfile -d '' cloud_assets < <(find "$cloud_dir/download" -mindepth 1 -maxdepth 1 -type f -print0)
+          if (( ${#cloud_assets[@]} != 2 )); then
+            echo "Expected exactly two cloud release assets; found ${#cloud_assets[@]}." >&2
+            exit 1
+          fi
+          cmp -- "$asset_dir/$zip_name" "$cloud_dir/download/$zip_name"
+          cmp -- "$asset_dir/SHA256SUMS.txt" "$cloud_dir/download/SHA256SUMS.txt"
+          (
+            cd "$cloud_dir/download"
+            sha256sum --check --strict SHA256SUMS.txt
+            unzip -tq "$zip_name"
+          )
+
+          gh release edit "$release_tag" \
+            --repo "$GITHUB_REPOSITORY" \
+            --draft=false \
+            --prerelease \
+            --latest=false
+
+          gh release view "$release_tag" \
+            --repo "$GITHUB_REPOSITORY" \
+            --json assets,isDraft,isPrerelease,tagName,targetCommitish \
+            > "$cloud_dir/published-release.json"
+          jq -e \
+            --arg tag "$release_tag" \
+            --arg sha "$RELEASE_TARGET_SHA" \
+            --arg zip "$zip_name" '
+              .tagName == $tag and
+              .targetCommitish == $sha and
+              .isDraft == false and
+              .isPrerelease == true and
+              ([.assets[].name] | sort) == (["SHA256SUMS.txt", $zip] | sort) and
+              ([.assets[] | select(.state != "uploaded" or .size <= 0)] | length) == 0
+            ' "$cloud_dir/published-release.json" > /dev/null
+
+          # Draft releases may not create the tag until they are published.
+          # Verify the newly visible lightweight tag now points at this run's
+          # exact, already-verified commit.
+          gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$release_tag" \
+            > "$cloud_dir/tag-ref.json"
+          jq -e --arg sha "$RELEASE_TARGET_SHA" \
+            '.object.type == "commit" and .object.sha == $sha' \
+            "$cloud_dir/tag-ref.json" > /dev/null
