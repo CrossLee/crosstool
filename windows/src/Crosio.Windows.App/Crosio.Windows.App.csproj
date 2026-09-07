@@ -100,6 +100,19 @@
     </Content>
   </ItemGroup>
 
+  <!-- The translation engine uses the explicitly pinned ONNX Runtime package.
+       Windows App SDK also carries an older, same-named native runtime; exclude
+       that copy before its self-contained payload is added to publish items. -->
+  <Target
+    Name="ExcludeWindowsAppSdkOnnxRuntime"
+    BeforeTargets="AddMicrosoftWindowsAppSDKPayloadFilesFromMsix"
+    Condition="'$(WindowsAppSDKSelfContained)' == 'true' and '$(MicrosoftWindowsAppSDKPackageDir)' != ''">
+    <ItemGroup>
+      <MicrosoftWindowsAppSDKFilesExcluded Include="$(MicrosoftWindowsAppSDKMsixContent)\onnxruntime.dll" />
+      <MicrosoftWindowsAppSDKFilesExcluded Include="$(MicrosoftWindowsAppSDKMsixContent)\onnxruntime_providers_shared.dll" />
+    </ItemGroup>
+  </Target>
+
   <Target
     Name="ValidateCrosioPackagePayload"
     BeforeTargets="_GenerateAppxPackageFile"

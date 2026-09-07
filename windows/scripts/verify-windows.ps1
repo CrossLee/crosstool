@@ -50,7 +50,7 @@ $testProjects = @(
 
 foreach ($relativeProject in $testProjects) {
     $project = Join-Path $windowsRoot $relativeProject
-    Invoke-Checked dotnet test $project --configuration $Configuration --arch $architecture
+    Invoke-Checked -Command "dotnet" -Arguments @("test", $project, "--configuration", $Configuration, "--arch", $architecture)
 }
 
 $windowsProjects = @(
@@ -64,28 +64,32 @@ $windowsProjects = @(
 
 foreach ($relativeProject in $windowsProjects) {
     $project = Join-Path $windowsRoot $relativeProject
-    Invoke-Checked dotnet build $project --configuration $Configuration -p:Platform=$Platform
+    Invoke-Checked -Command "dotnet" -Arguments @("build", $project, "--configuration", $Configuration, "-p:Platform=$Platform")
 }
 
 $shellProject = Join-Path $windowsRoot "shell/Crosio.Windows.ShellExtension/Crosio.Windows.ShellExtension.vcxproj"
-Invoke-Checked msbuild $shellProject /restore /m /p:Configuration=$Configuration /p:Platform=$Platform
+Invoke-Checked -Command "msbuild" -Arguments @($shellProject, "/restore", "/m", "/p:Configuration=$Configuration", "/p:Platform=$Platform")
 
 $appProject = Join-Path $windowsRoot "src/Crosio.Windows.App/Crosio.Windows.App.csproj"
-Invoke-Checked dotnet build $appProject `
-    --configuration $Configuration `
-    -p:Platform=$Platform `
-    -p:CrosioVCRuntimeDirectory=$vcRuntimeDirectory
+Invoke-Checked -Command "dotnet" -Arguments @(
+    "build", $appProject,
+    "--configuration", $Configuration,
+    "-p:Platform=$Platform",
+    "-p:CrosioVCRuntimeDirectory=$vcRuntimeDirectory"
+)
 
 $publishDirectory = Join-Path $artifactRoot "publish/$runtimeIdentifier"
-Invoke-Checked dotnet publish $appProject `
-    --configuration $Configuration `
-    --runtime $runtimeIdentifier `
-    --self-contained true `
-    --output $publishDirectory `
-    -p:Platform=$Platform `
-    -p:CrosioVCRuntimeDirectory=$vcRuntimeDirectory `
-    -p:PublishSingleFile=false `
-    -p:EnableMsixTooling=true
+Invoke-Checked -Command "dotnet" -Arguments @(
+    "publish", $appProject,
+    "--configuration", $Configuration,
+    "--runtime", $runtimeIdentifier,
+    "--self-contained", "true",
+    "--output", $publishDirectory,
+    "-p:Platform=$Platform",
+    "-p:CrosioVCRuntimeDirectory=$vcRuntimeDirectory",
+    "-p:PublishSingleFile=false",
+    "-p:EnableMsixTooling=true"
+)
 
 $requiredPublishFiles = @(
     "Crosio.exe",
