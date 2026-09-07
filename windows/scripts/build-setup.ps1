@@ -105,14 +105,59 @@ foreach ($architecture in @("x64", "arm64")) {
 # https://github.com/microsoft/winget-pkgs/blob/master/manifests/n/NSIS/NSIS/3.12/NSIS.NSIS.installer.yaml
 $nsisVersion = "3.12"
 $nsisSetupHash = "3BC2B06253A7E4957111BE152AC6A536E0C7478A706E19DA814038DB5D706495"
+$nsisSetupSize = 1566914
 $toolsDirectory = Join-Path $windowsRoot "artifacts/tools"
 New-Item -ItemType Directory -Path $toolsDirectory -Force | Out-Null
 $nsisDownload = Join-Path $toolsDirectory "nsis-$nsisVersion-setup.exe"
-if (-not (Test-Path -LiteralPath $nsisDownload -PathType Leaf)) {
-    Invoke-WebRequest -Uri "https://sourceforge.net/projects/nsis/files/NSIS%203/3.12/nsis-3.12-setup.exe/download" -OutFile $nsisDownload -UseBasicParsing
+
+function Test-NsisDownload {
+    param([string]$Path)
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { return $false }
+    $length = (Get-Item -LiteralPath $Path).Length
+    $hash = (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash
+    $stream = [System.IO.File]::OpenRead($Path)
+    try { $isPe = $stream.ReadByte() -eq 0x4d -and $stream.ReadByte() -eq 0x5a }
+    finally { $stream.Dispose() }
+    if ($length -eq $nsisSetupSize -and $isPe -and $hash -eq $nsisSetupHash) { return $true }
+    Write-Warning "Rejected NSIS download: bytes=$length; SHA256=$hash; MZ=$isPe. Expected bytes=$nsisSetupSize; SHA256=$nsisSetupHash. No downloaded code was executed."
+    return $false
 }
-if ((Get-FileHash -LiteralPath $nsisDownload -Algorithm SHA256).Hash -ne $nsisSetupHash) {
-    throw "NSIS 3.12 download failed its pinned SHA256 check. Do not execute this file."
+
+# /projects/.../download can return an HTML interstitial with HTTP 200 on CI.
+# These are SourceForge's official direct-file endpoints and download mirror.
+# Every attempt, including cached files, must match the unchanged winget pin.
+if (-not (Test-NsisDownload -Path $nsisDownload)) {
+    $downloadUrls = @(
+        "https://downloads.sourceforge.net/project/nsis/NSIS%203/3.12/nsis-3.12-setup.exe",
+        "https://prdownloads.sourceforge.net/nsis/nsis-3.12-setup.exe?download",
+        "https://pilotfiber.dl.sourceforge.net/project/nsis/NSIS%203/3.12/nsis-3.12-setup.exe"
+    )
+    $downloadVerified = $false
+    foreach ($downloadUrl in $downloadUrls) {
+        $attemptPath = Join-Path $toolsDirectory ("nsis-3.12-" + [Guid]::NewGuid().ToString("N") + ".download")
+        try {
+            Write-Host "Downloading pinned NSIS 3.12 from $downloadUrl"
+            Invoke-WebRequest -Uri $downloadUrl -OutFile $attemptPath -UseBasicParsing -TimeoutSec 60 -ErrorAction Stop
+            if (Test-NsisDownload -Path $attemptPath) {
+                Move-Item -LiteralPath $attemptPath -Destination $nsisDownload -Force
+                $downloadVerified = $true
+                break
+            }
+        }
+        catch {
+            Write-Warning "NSIS download attempt failed: $($_.Exception.Message)"
+        }
+        finally {
+            # Delete only this attempt's generated partial/untrusted download.
+            if (Test-Path -LiteralPath $attemptPath -PathType Leaf) { Remove-Item -LiteralPath $attemptPath -Force }
+        }
+    }
+    if (-not $downloadVerified) {
+        throw "No official NSIS download matched the pinned SHA256 after $($downloadUrls.Count) bounded attempts. No downloaded code was executed."
+    }
+}
+if (-not (Test-NsisDownload -Path $nsisDownload)) {
+    throw "The verified NSIS cache changed before extraction. No downloaded code was executed."
 }
 
 $stagingRoot = Join-Path $windowsRoot "artifacts/installer-staging"
