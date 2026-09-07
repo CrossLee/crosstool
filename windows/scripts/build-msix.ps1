@@ -102,7 +102,7 @@ try {
         "/p:PublishReadyToRun=false",
         "/p:AppxPackageDir=$rawOutput\"
     )
-    Invoke-CrosioChecked "msbuild" @msbuildArguments
+    Invoke-CrosioChecked -Command "msbuild" -Arguments $msbuildArguments
 } finally {
     [System.IO.File]::WriteAllBytes($manifestPath, $originalManifest)
 }
@@ -128,7 +128,7 @@ if (Test-Path -LiteralPath $inspectionDirectory) {
 }
 New-Item -ItemType Directory -Path $inspectionDirectory -Force | Out-Null
 $makeAppx = Resolve-CrosioWindowsSdkTool "makeappx.exe"
-Invoke-CrosioChecked $makeAppx "unpack" "/p" $packagePath "/d" $inspectionDirectory "/o"
+Invoke-CrosioChecked -Command $makeAppx -Arguments @("unpack", "/p", $packagePath, "/d", $inspectionDirectory, "/o")
 
 $packagedShellDll = Join-Path $inspectionDirectory "ShellExtensions/Crosio.Windows.ShellExtension.dll"
 $requiredPackageFiles = @(
@@ -239,7 +239,7 @@ if ($generatedImageTypes.Count -ne 9) {
 Remove-Item -LiteralPath $inspectionDirectory -Recurse -Force
 
 if (-not [string]::IsNullOrWhiteSpace($CertificatePath) -and -not $SkipSigning) {
-    Invoke-CrosioSign $packagePath $CertificatePath $CertificatePassword $TimestampUrl
+    Invoke-CrosioSign -Path $packagePath -CertificatePath $CertificatePath -CertificatePassword $CertificatePassword -TimestampUrl $TimestampUrl
 }
 
 $shellDll = Join-Path $artifactRoot "shell/$Architecture/$Configuration/Crosio.Windows.ShellExtension.dll"

@@ -204,7 +204,7 @@ function Invoke-CrosioSign {
     }
     $arguments += $Path
 
-    Invoke-CrosioChecked $signTool @arguments
+    Invoke-CrosioChecked -Command $signTool -Arguments $arguments
 }
 
 function Assert-CrosioMsixVersion {

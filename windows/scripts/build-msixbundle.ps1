@@ -81,17 +81,22 @@ foreach ($package in $packages) {
 
 $makeAppx = Resolve-CrosioWindowsSdkTool "makeappx.exe"
 $bundlePath = Join-Path $releaseOutput "Crosio-Windows-$Version-$packageFlavor.msixbundle"
-Invoke-CrosioChecked $makeAppx "bundle" "/d" $bundleInput "/p" $bundlePath "/o"
+Invoke-CrosioChecked -Command $makeAppx -Arguments @("bundle", "/d", $bundleInput, "/p", $bundlePath, "/bv", $Version, "/o")
 
 $releaseNotices = Join-Path $releaseOutput "THIRD_PARTY_NOTICES.md"
 Copy-Item -LiteralPath $thirdPartyNotices -Destination $releaseNotices -Force
 
-$releaseFiles = @($releasePackages) + @($bundlePath) + @($releaseNotices)
+$releaseInstaller = Join-Path $releaseOutput "Install-Crosio.ps1"
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot "Install-Crosio.ps1") -Destination $releaseInstaller -Force
+$releaseTestingGuide = Join-Path $releaseOutput "TESTING.md"
+Copy-Item -LiteralPath (Join-Path $windowsRoot "TESTING.md") -Destination $releaseTestingGuide -Force
+
+$releaseFiles = @($releasePackages) + @($bundlePath, $releaseNotices, $releaseInstaller, $releaseTestingGuide)
 if (-not [string]::IsNullOrWhiteSpace($CertificatePath)) {
     foreach ($package in $releaseFiles | Where-Object { $_.EndsWith(".msix", [System.StringComparison]::OrdinalIgnoreCase) }) {
-        Invoke-CrosioSign $package $CertificatePath $CertificatePassword $TimestampUrl
+        Invoke-CrosioSign -Path $package -CertificatePath $CertificatePath -CertificatePassword $CertificatePassword -TimestampUrl $TimestampUrl
     }
-    Invoke-CrosioSign $bundlePath $CertificatePath $CertificatePassword $TimestampUrl
+    Invoke-CrosioSign -Path $bundlePath -CertificatePath $CertificatePath -CertificatePassword $CertificatePassword -TimestampUrl $TimestampUrl
 }
 
 $checksumLines = foreach ($file in $releaseFiles) {
@@ -102,8 +107,6 @@ $checksumLines = foreach ($file in $releaseFiles) {
     (Join-Path $releaseOutput "SHA256SUMS.txt"),
     $checksumLines,
     [System.Text.UTF8Encoding]::new($false))
-
-Copy-Item -LiteralPath (Join-Path $PSScriptRoot "Install-Crosio.ps1") -Destination $releaseOutput -Force
 
 $buildInfo = [ordered]@{
     product = "Crosio"

@@ -70,6 +70,20 @@ foreach ($relativeProject in $windowsProjects) {
 $shellProject = Join-Path $windowsRoot "shell/Crosio.Windows.ShellExtension/Crosio.Windows.ShellExtension.vcxproj"
 Invoke-Checked -Command "msbuild" -Arguments @($shellProject, "/restore", "/m", "/p:Configuration=$Configuration", "/p:Platform=$Platform")
 
+$shellSmokeProject = Join-Path $windowsRoot "shell/Crosio.Windows.ShellExtension.SmokeTests/Crosio.Windows.ShellExtension.SmokeTests.vcxproj"
+Invoke-Checked -Command "msbuild" -Arguments @($shellSmokeProject, "/restore", "/m", "/p:Configuration=$Configuration", "/p:Platform=$Platform")
+
+$hostArchitecture = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
+$canRunShellSmoke = ($Platform -eq "x64") -or (($Platform -eq "ARM64") -and ($hostArchitecture -eq "Arm64"))
+if ($canRunShellSmoke) {
+    $shellExtension = Join-Path $artifactRoot "shell/$Platform/$Configuration/Crosio.Windows.ShellExtension.dll"
+    $shellSmokeExecutable = Join-Path $artifactRoot "shell-tests/$Platform/$Configuration/Crosio.Windows.ShellExtension.SmokeTests.exe"
+    Invoke-Checked -Command $shellSmokeExecutable -Arguments @($shellExtension)
+}
+else {
+    Write-Warning "Built the $Platform native shell smoke harness, but cannot execute it on a $hostArchitecture host."
+}
+
 $appProject = Join-Path $windowsRoot "src/Crosio.Windows.App/Crosio.Windows.App.csproj"
 Invoke-Checked -Command "dotnet" -Arguments @(
     "build", $appProject,
