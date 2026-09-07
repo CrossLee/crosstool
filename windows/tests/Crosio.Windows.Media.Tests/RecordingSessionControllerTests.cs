@@ -63,14 +63,16 @@ public sealed class RecordingSessionControllerTests
     [Fact]
     public async Task StartChecksDraftAndCompletedVolumesBeforeOpeningRecorder()
     {
-        var active = new FakeActiveRecording("/drafts/session.partial.mp4");
+        var draftDirectory = Path.Combine(Path.GetTempPath(), "Crosio-volume-test", "drafts");
+        var draftPath = Path.Combine(draftDirectory, "session.partial.mp4");
+        var active = new FakeActiveRecording(draftPath);
         var backend = new FakeBackend(AllSupported(), active);
-        var store = new FakeFileStore("/drafts/session.partial.mp4", "/completed/result.mp4")
+        var store = new FakeFileStore(draftPath, "/completed/result.mp4")
         {
-            VolumeIdentityProvider = path => path.StartsWith("/drafts", StringComparison.Ordinal)
+            VolumeIdentityProvider = path => path == draftDirectory
                 ? "draft-volume"
                 : "completed-volume",
-            AvailableBytesProvider = path => path.StartsWith("/drafts", StringComparison.Ordinal)
+            AvailableBytesProvider = path => path == draftDirectory
                 ? 1
                 : long.MaxValue,
         };

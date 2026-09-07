@@ -21,6 +21,33 @@ constexpr CLSID CLSID_CrosioCopyPath = {
 std::atomic<long> g_objectCount{0};
 std::atomic<long> g_serverLockCount{0};
 
+class ClipboardOwnerWindow final
+{
+public:
+    ClipboardOwnerWindow() noexcept
+        : _window(CreateWindowExW(
+              0, L"STATIC", L"Crosio clipboard owner", 0,
+              0, 0, 0, 0, HWND_MESSAGE, nullptr, nullptr, nullptr))
+    {
+    }
+
+    ~ClipboardOwnerWindow() noexcept
+    {
+        if (_window != nullptr)
+        {
+            DestroyWindow(_window);
+        }
+    }
+
+    ClipboardOwnerWindow(const ClipboardOwnerWindow&) = delete;
+    ClipboardOwnerWindow& operator=(const ClipboardOwnerWindow&) = delete;
+
+    HWND Get() const noexcept { return _window; }
+
+private:
+    HWND _window;
+};
+
 HRESULT DuplicateString(const wchar_t* value, PWSTR* output) noexcept
 {
     if (output == nullptr)
@@ -76,21 +103,32 @@ HRESULT CopyUnicodeTextToClipboard(const std::wstring& text) noexcept
     memcpy(destination, text.c_str(), characters * sizeof(wchar_t));
     GlobalUnlock(memory);
 
+    // EmptyClipboard requires a real owner HWND before SetClipboardData.
+    // A message-only window stays invisible and never opens the Crosio UI.
+    const ClipboardOwnerWindow clipboardOwner;
+    if (clipboardOwner.Get() == nullptr)
+    {
+        const DWORD error = GetLastError();
+        GlobalFree(memory);
+        return error == ERROR_SUCCESS ? E_FAIL : HRESULT_FROM_WIN32(error);
+    }
+
     BOOL opened = FALSE;
+    DWORD clipboardError = ERROR_SUCCESS;
     for (int attempt = 0; attempt < 8 && opened == FALSE; ++attempt)
     {
-        opened = OpenClipboard(nullptr);
+        opened = OpenClipboard(clipboardOwner.Get());
         if (opened == FALSE)
         {
+            clipboardError = GetLastError();
             Sleep(15);
         }
     }
 
     if (opened == FALSE)
     {
-        const HRESULT result = HRESULT_FROM_WIN32(GetLastError());
         GlobalFree(memory);
-        return result;
+        return clipboardError == ERROR_SUCCESS ? E_FAIL : HRESULT_FROM_WIN32(clipboardError);
     }
 
     HRESULT result = S_OK;

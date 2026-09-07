@@ -30,40 +30,52 @@ public sealed class ClipboardPathService : IClipboardPathService
             throw new Win32Exception(Marshal.GetLastWin32Error());
         }
 
-        var destination = GlobalLock(memory);
-        if (destination == IntPtr.Zero)
-        {
-            _ = GlobalFree(memory);
-            throw new Win32Exception(Marshal.GetLastWin32Error());
-        }
-
-        try
-        {
-            Marshal.Copy(characters, 0, destination, characters.Length);
-        }
-        finally
-        {
-            _ = GlobalUnlock(memory);
-        }
-
+        var ownerWindow = IntPtr.Zero;
         var clipboardOpened = false;
         try
         {
+            var destination = GlobalLock(memory);
+            if (destination == IntPtr.Zero)
+            {
+                throw new Win32Exception(Marshal.GetLastWin32Error());
+            }
+
+            try
+            {
+                Marshal.Copy(characters, 0, destination, characters.Length);
+            }
+            finally
+            {
+                _ = GlobalUnlock(memory);
+            }
+
+            // A message-only window gives EmptyClipboard a real owner without
+            // opening or activating any application UI.
+            ownerWindow = CreateWindowExW(
+                0, "STATIC", "Crosio clipboard owner", 0,
+                0, 0, 0, 0, new IntPtr(-3), IntPtr.Zero, IntPtr.Zero, IntPtr.Zero);
+            if (ownerWindow == IntPtr.Zero)
+            {
+                throw new Win32Exception(Marshal.GetLastWin32Error());
+            }
+
+            var clipboardError = 0;
             for (var attempt = 0; attempt < ClipboardRetryCount; attempt++)
             {
-                if (OpenClipboard(IntPtr.Zero))
+                if (OpenClipboard(ownerWindow))
                 {
                     clipboardOpened = true;
                     break;
                 }
 
+                clipboardError = Marshal.GetLastWin32Error();
                 Thread.Sleep(ClipboardRetryDelayMilliseconds);
             }
 
             if (!clipboardOpened)
             {
                 throw new Win32Exception(
-                    Marshal.GetLastWin32Error(),
+                    clipboardError,
                     "The Windows clipboard is busy. Please try Copy Path again.");
             }
 
@@ -82,17 +94,41 @@ public sealed class ClipboardPathService : IClipboardPathService
         }
         finally
         {
-            if (memory != IntPtr.Zero)
-            {
-                _ = GlobalFree(memory);
-            }
-
             if (clipboardOpened)
             {
                 _ = CloseClipboard();
             }
+
+            if (ownerWindow != IntPtr.Zero)
+            {
+                _ = DestroyWindow(ownerWindow);
+            }
+
+            if (memory != IntPtr.Zero)
+            {
+                _ = GlobalFree(memory);
+            }
         }
     }
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode, ExactSpelling = true, SetLastError = true)]
+    private static extern IntPtr CreateWindowExW(
+        uint extendedStyle,
+        string className,
+        string windowName,
+        uint style,
+        int x,
+        int y,
+        int width,
+        int height,
+        IntPtr parentWindow,
+        IntPtr menu,
+        IntPtr instance,
+        IntPtr parameter);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool DestroyWindow(IntPtr window);
 
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
