@@ -126,6 +126,23 @@ function Format-SetupDiagnosticText {
     return $singleLine
 }
 
+function Format-SetupControlText {
+    param(
+        [AllowNull()]
+        [AllowEmptyString()]
+        [string]$Text
+    )
+
+    $displayText = Format-SetupDiagnosticText -Text $Text
+    $codePoints = if ($null -eq $Text) {
+        "<null>"
+    }
+    else {
+        (@($Text.ToCharArray() | ForEach-Object { "U+{0:X4}" -f [int]$_ }) -join ",")
+    }
+    return "$displayText [$codePoints]"
+}
+
 function Add-OwnedInstallerProcessHandle {
     param(
         [Parameter(Mandatory)]
@@ -346,29 +363,87 @@ function Find-EnabledSetupButton {
         [string[]]$NamePrefixes
     )
 
-    $buttonCondition = [System.Windows.Automation.PropertyCondition]::new(
-        [System.Windows.Automation.AutomationElement]::ControlTypeProperty,
-        [System.Windows.Automation.ControlType]::Button)
-    $buttons = $Window.FindAll(
+    $candidateDiagnostics = [System.Collections.Generic.List[string]]::new()
+    $elements = $Window.FindAll(
         [System.Windows.Automation.TreeScope]::Descendants,
-        $buttonCondition)
-    foreach ($button in $buttons) {
+        [System.Windows.Automation.Condition]::TrueCondition)
+    foreach ($element in $elements) {
         try {
-            if (-not $button.Current.IsEnabled) {
+            $elementName = [string]$element.Current.Name
+            $elementType = $element.Current.ControlType.ProgrammaticName
+            $elementEnabled = $element.Current.IsEnabled
+            $elementAutomationId = [string]$element.Current.AutomationId
+            $nameMatches = $false
+            foreach ($prefix in $NamePrefixes) {
+                if ($elementName.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) {
+                    $nameMatches = $true
+                    break
+                }
+            }
+
+            if ($nameMatches -or
+                $elementType -eq "ControlType.Button" -or
+                $elementAutomationId -eq "1") {
+                $elementText = Format-SetupControlText -Text $elementName
+                [void]$candidateDiagnostics.Add(
+                    "UIA Name=$elementText; Type=$elementType; Enabled=$elementEnabled; AutomationId=$elementAutomationId; HWND=$($element.Current.NativeWindowHandle)")
+            }
+            if (-not $nameMatches -or -not $elementEnabled) {
                 continue
             }
 
-            $buttonName = [string]$button.Current.Name
-            foreach ($prefix in $NamePrefixes) {
-                if ($buttonName.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) {
-                    return $button
+            try {
+                $null = $element.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern)
+                $script:LastSetupButtonDiagnostics = Format-SetupDiagnosticText -Text ($candidateDiagnostics -join " || ")
+                return [pscustomobject]@{
+                    Element = $element
+                    NativeHandle = [IntPtr]::Zero
                 }
+            }
+            catch [System.InvalidOperationException] {
+                # Some native NSIS controls expose their caption through UIA
+                # without an InvokePattern. The exact dialog-item fallback
+                # below still validates its class, caption, and enabled state.
             }
         }
         catch [System.Windows.Automation.ElementNotAvailableException] {
         }
     }
 
+    $dialogHandleValue = [int]$Window.Current.NativeWindowHandle
+    $nativeButton = [Crosio.MsixAcceptance.Native]::GetDialogButton($dialogHandleValue, 1)
+    if ($nativeButton -ne [IntPtr]::Zero) {
+        $nativeName = [Crosio.MsixAcceptance.Native]::GetNativeWindowText($nativeButton)
+        $nativeClass = [Crosio.MsixAcceptance.Native]::GetNativeWindowClass($nativeButton)
+        $nativeEnabled = [Crosio.MsixAcceptance.Native]::GetNativeWindowEnabled($nativeButton)
+        $nativeText = Format-SetupControlText -Text $nativeName
+        [void]$candidateDiagnostics.Add(
+            "Win32 ID=1; Name=$nativeText; Class=$nativeClass; Enabled=$nativeEnabled; HWND=$nativeButton")
+        $nativeNameMatches = $false
+        foreach ($prefix in $NamePrefixes) {
+            if ($nativeName.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) {
+                $nativeNameMatches = $true
+                break
+            }
+        }
+
+        if ($nativeNameMatches -and $nativeEnabled -and $nativeClass -eq "Button") {
+            $nativeElement = $null
+            try {
+                $nativeElement = [System.Windows.Automation.AutomationElement]::FromHandle($nativeButton)
+            }
+            catch [System.Windows.Automation.ElementNotAvailableException] {
+                # The bounded native click below does not require a UIA proxy.
+            }
+            $script:LastSetupButtonDiagnostics = Format-SetupDiagnosticText -Text ($candidateDiagnostics -join " || ")
+            return [pscustomobject]@{
+                Element = $nativeElement
+                NativeHandle = $nativeButton
+            }
+        }
+    }
+
+    $script:LastSetupButtonDiagnostics = Format-SetupDiagnosticText -Text ($candidateDiagnostics -join " || ")
     return $null
 }
 
@@ -395,6 +470,7 @@ function Wait-ForSetupAction {
 
     $noProcessSince = $null
     $lastOwnedInstallerText = $null
+    $lastButtonDiagnostics = "<none>"
     while ([DateTime]::UtcNow -lt $DeadlineUtc) {
         Update-OwnedInstallerProcesses -StartTimes $StartTimes -Handles $Handles -NotBeforeUtc $NotBeforeUtc
         $visibleWindows = @(Get-OwnedVisibleWindows -StartTimes $StartTimes -Handles $Handles)
@@ -421,6 +497,7 @@ function Wait-ForSetupAction {
                 }
 
                 $button = Find-EnabledSetupButton -Window $window -NamePrefixes $ButtonPrefixes
+                $lastButtonDiagnostics = $script:LastSetupButtonDiagnostics
                 if ($null -ne $button) {
                     return [pscustomobject]@{
                         Window = $window
@@ -442,14 +519,14 @@ function Wait-ForSetupAction {
         }
         elseif (([DateTime]::UtcNow - $noProcessSince).TotalSeconds -ge 1) {
             $diagnosticText = Format-SetupDiagnosticText -Text $lastOwnedInstallerText
-            throw "The Crosio GUI installer exited before the $Stage action became available. Last installer UI: $diagnosticText"
+            throw "The Crosio GUI installer exited before the $Stage action became available. Last installer UI: $diagnosticText. Button candidates: $lastButtonDiagnostics"
         }
 
         Start-Sleep -Milliseconds 100
     }
 
     $diagnosticText = Format-SetupDiagnosticText -Text $lastOwnedInstallerText
-    throw "The Crosio GUI installer did not expose the $Stage action within $InstallerTimeoutSeconds seconds. Last installer UI: $diagnosticText"
+    throw "The Crosio GUI installer did not expose the $Stage action within $InstallerTimeoutSeconds seconds. Last installer UI: $diagnosticText. Button candidates: $lastButtonDiagnostics"
 }
 
 function Invoke-SetupAction {
@@ -462,9 +539,24 @@ function Invoke-SetupAction {
     )
 
     try {
-        $invokePattern = $Button.GetCurrentPattern(
-            [System.Windows.Automation.InvokePattern]::Pattern)
-        [void]$invokePattern.Invoke()
+        if ($null -ne $Button.Element) {
+            try {
+            $invokePattern = $Button.Element.GetCurrentPattern(
+                [System.Windows.Automation.InvokePattern]::Pattern)
+            [void]$invokePattern.Invoke()
+            return
+            }
+            catch [System.InvalidOperationException] {
+                if ($Button.NativeHandle -eq [IntPtr]::Zero) {
+                    throw
+                }
+            }
+        }
+
+        # BM_CLICK is bounded by SendMessageTimeout and is used only after the
+        # owned dialog's ID 1 child was verified as an enabled Button whose
+        # caption exactly matches the expected stage.
+        [Crosio.MsixAcceptance.Native]::ClickDialogButton($Button.NativeHandle, 2000)
     }
     catch {
         throw "The Crosio GUI installer's $Stage button could not be invoked through UI Automation: $($_.Exception.Message)"
@@ -477,19 +569,21 @@ function Assert-SetupRunOptionUnchecked {
         $Window
     )
 
-    $checkBoxCondition = [System.Windows.Automation.PropertyCondition]::new(
-        [System.Windows.Automation.AutomationElement]::ControlTypeProperty,
-        [System.Windows.Automation.ControlType]::CheckBox)
-    $checkBoxes = $Window.FindAll(
+    $elements = $Window.FindAll(
         [System.Windows.Automation.TreeScope]::Descendants,
-        $checkBoxCondition)
+        [System.Windows.Automation.Condition]::TrueCondition)
     $runCheckBox = $null
-    foreach ($checkBox in $checkBoxes) {
+    foreach ($element in $elements) {
         try {
-            $checkBoxName = [string]$checkBox.Current.Name
-            if ($checkBoxName.StartsWith($script:SetupRunOptionPrefix, [StringComparison]::OrdinalIgnoreCase) -or
-                $checkBoxName.StartsWith("Run Crosio", [StringComparison]::OrdinalIgnoreCase)) {
-                $runCheckBox = $checkBox
+            $elementName = [string]$element.Current.Name
+            if ($elementName.StartsWith($script:SetupRunOptionPrefix, [StringComparison]::OrdinalIgnoreCase) -or
+                $elementName.StartsWith("Run Crosio", [StringComparison]::OrdinalIgnoreCase)) {
+                try {
+                    $null = $element.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern)
+                    $runCheckBox = $element
+                }
+                catch [System.InvalidOperationException] {
+                }
                 break
             }
         }
@@ -497,13 +591,26 @@ function Assert-SetupRunOptionUnchecked {
         }
     }
 
-    if ($null -eq $runCheckBox) {
-        throw "The Crosio GUI installer's Finish page has no optional run-Crosio checkbox."
+    if ($null -ne $runCheckBox) {
+        $togglePattern = $runCheckBox.GetCurrentPattern(
+            [System.Windows.Automation.TogglePattern]::Pattern)
+        if ($togglePattern.Current.ToggleState -ne [System.Windows.Automation.ToggleState]::Off) {
+            throw "The Crosio GUI installer selected its run-Crosio option by default."
+        }
+        return
     }
 
-    $togglePattern = $runCheckBox.GetCurrentPattern(
-        [System.Windows.Automation.TogglePattern]::Pattern)
-    if ($togglePattern.Current.ToggleState -ne [System.Windows.Automation.ToggleState]::Off) {
+    $dialogHandleValue = [int]$Window.Current.NativeWindowHandle
+    $nativeCheckBox = [Crosio.MsixAcceptance.Native]::FindCheckBox(
+        $dialogHandleValue,
+        $script:SetupRunOptionPrefix)
+    if ($nativeCheckBox -eq [IntPtr]::Zero) {
+        throw "The Crosio GUI installer's Finish page has no uniquely identifiable optional run-Crosio checkbox."
+    }
+    if (-not [Crosio.MsixAcceptance.Native]::GetNativeWindowEnabled($nativeCheckBox)) {
+        throw "The Crosio GUI installer's optional run-Crosio checkbox is disabled."
+    }
+    if ([Crosio.MsixAcceptance.Native]::GetCheckState($nativeCheckBox, 2000) -ne 0) {
         throw "The Crosio GUI installer selected its run-Crosio option by default."
     }
 }
@@ -708,6 +815,7 @@ namespace Crosio.MsixAcceptance
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode, ExactSpelling = true)] private static extern int GetPackageFullName(
             IntPtr process, ref uint length, StringBuilder name);
         private delegate bool EnumWindowsCallback(IntPtr window, IntPtr parameter);
+        private delegate bool EnumChildWindowsCallback(IntPtr window, IntPtr parameter);
         [DllImport("user32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)] private static extern bool EnumWindows(EnumWindowsCallback callback, IntPtr parameter);
         [DllImport("user32.dll")]
@@ -715,6 +823,92 @@ namespace Crosio.MsixAcceptance
         [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(IntPtr window, out uint processId);
         [DllImport("user32.dll", CharSet = CharSet.Unicode, ExactSpelling = true)]
         private static extern int GetWindowTextW(IntPtr window, StringBuilder title, int capacity);
+        [DllImport("user32.dll", CharSet = CharSet.Unicode, ExactSpelling = true)]
+        private static extern int GetClassNameW(IntPtr window, StringBuilder className, int capacity);
+        [DllImport("user32.dll")] private static extern IntPtr GetDlgItem(IntPtr dialog, int itemId);
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)] private static extern bool IsWindowEnabled(IntPtr window);
+        [DllImport("user32.dll", CharSet = CharSet.Unicode, ExactSpelling = true, SetLastError = true)]
+        private static extern IntPtr SendMessageTimeoutW(IntPtr window, uint message, UIntPtr wParam,
+            IntPtr lParam, uint flags, uint timeoutMilliseconds, out UIntPtr result);
+        [DllImport("user32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)] private static extern bool EnumChildWindows(
+            IntPtr parent, EnumChildWindowsCallback callback, IntPtr parameter);
+        [DllImport("user32.dll", CharSet = CharSet.Unicode, ExactSpelling = true)]
+        private static extern IntPtr GetWindowLongPtrW(IntPtr window, int index);
+
+        public static IntPtr GetDialogButton(int automationDialogHandle, int itemId)
+        {
+            var dialog = new IntPtr(unchecked((long)(uint)automationDialogHandle));
+            return GetDlgItem(dialog, itemId);
+        }
+
+        public static string GetNativeWindowText(IntPtr window)
+        {
+            var text = new StringBuilder(512);
+            GetWindowTextW(window, text, text.Capacity);
+            return text.ToString();
+        }
+
+        public static string GetNativeWindowClass(IntPtr window)
+        {
+            var className = new StringBuilder(128);
+            GetClassNameW(window, className, className.Capacity);
+            return className.ToString();
+        }
+
+        public static bool GetNativeWindowEnabled(IntPtr window) { return IsWindowEnabled(window); }
+
+        public static IntPtr FindCheckBox(int automationDialogHandle, string captionPrefix)
+        {
+            var dialog = new IntPtr(unchecked((long)(uint)automationDialogHandle));
+            IntPtr found = IntPtr.Zero;
+            bool ambiguous = false;
+            bool succeeded = EnumChildWindows(dialog, (window, parameter) =>
+            {
+                long buttonType = GetWindowLongPtrW(window, -16).ToInt64() & 0x0f;
+                bool checkBoxStyle = buttonType == 2 || buttonType == 3 || buttonType == 5 || buttonType == 6;
+                if (checkBoxStyle &&
+                    String.Equals(GetNativeWindowClass(window), "Button", StringComparison.Ordinal) &&
+                    GetNativeWindowText(window).StartsWith(captionPrefix, StringComparison.OrdinalIgnoreCase))
+                {
+                    if (found == IntPtr.Zero) { found = window; }
+                    else if (found != window) { ambiguous = true; }
+                }
+                return true;
+            }, IntPtr.Zero);
+            if (!succeeded) { throw new Win32Exception(Marshal.GetLastWin32Error(), "EnumChildWindows failed."); }
+            return ambiguous ? IntPtr.Zero : found;
+        }
+
+        public static uint GetCheckState(IntPtr checkBox, uint timeoutMilliseconds)
+        {
+            UIntPtr result;
+            IntPtr sent = SendMessageTimeoutW(checkBox, 0x00F0, UIntPtr.Zero, IntPtr.Zero,
+                0x0001 | 0x0002, timeoutMilliseconds, out result);
+            if (sent == IntPtr.Zero)
+            {
+                throw new Win32Exception(Marshal.GetLastWin32Error(), "Reading the native installer checkbox timed out or failed.");
+            }
+            return checked((uint)result.ToUInt64());
+        }
+
+        public static void ClickDialogButton(IntPtr button, uint timeoutMilliseconds)
+        {
+            if (button == IntPtr.Zero || !IsWindowEnabled(button) ||
+                !String.Equals(GetNativeWindowClass(button), "Button", StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException("The validated native installer button is no longer actionable.");
+            }
+
+            UIntPtr result;
+            IntPtr sent = SendMessageTimeoutW(button, 0x00F5, UIntPtr.Zero, IntPtr.Zero,
+                0x0001 | 0x0002, timeoutMilliseconds, out result);
+            if (sent == IntPtr.Zero)
+            {
+                throw new Win32Exception(Marshal.GetLastWin32Error(), "The native installer button click timed out or failed.");
+            }
+        }
 
         internal static string PackageFullName(IntPtr handle)
         {
