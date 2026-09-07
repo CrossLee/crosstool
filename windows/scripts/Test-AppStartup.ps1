@@ -149,13 +149,124 @@ function Find-CrosioMainWindow {
         Select-Object -First 1
 }
 
+function Write-CrosioStartupFailureEvents {
+    param(
+        [Parameter(Mandatory)]
+        [datetime]$StartedAt,
+
+        [Parameter(Mandatory)]
+        [string]$ExecutablePath,
+
+        [Parameter(Mandatory)]
+        [int]$StartedProcessId
+    )
+
+    try {
+        $eventRecords = @(
+            Get-WinEvent `
+                -FilterHashtable @{
+                    LogName = "Application"
+                    ProviderName = @(".NET Runtime", "Application Error")
+                    Level = 2
+                    StartTime = $StartedAt
+                } `
+                -MaxEvents 100 `
+                -ErrorAction Stop
+        )
+    }
+    catch {
+        if ($_.FullyQualifiedErrorId -notlike "NoMatchingEventsFound*") {
+            Write-Warning `
+                -Message "Could not read the Application event log for Crosio startup diagnostics: $($_.Exception.Message)" `
+                -WarningAction Continue
+        }
+
+        return
+    }
+
+    try {
+        $executableName = [IO.Path]::GetFileName($ExecutablePath)
+        $matchingEvents = @()
+
+        foreach ($eventRecord in $eventRecords) {
+            $eventMessage = ""
+            try {
+                $eventMessage = [string]$eventRecord.Message
+            }
+            catch {
+                # Event message resource lookup can fail independently of the
+                # event record; properties below can still identify Crosio.
+            }
+
+            $isRelated = (
+                $eventMessage.IndexOf($executableName, [StringComparison]::OrdinalIgnoreCase) -ge 0 -or
+                $eventMessage.IndexOf($ExecutablePath, [StringComparison]::OrdinalIgnoreCase) -ge 0 -or
+                $eventRecord.ProcessId -eq $StartedProcessId
+            )
+
+            if (-not $isRelated) {
+                foreach ($eventProperty in $eventRecord.Properties) {
+                    $propertyText = [string]$eventProperty.Value
+                    if (
+                        [StringComparer]::OrdinalIgnoreCase.Equals($propertyText, $executableName) -or
+                        [StringComparer]::OrdinalIgnoreCase.Equals($propertyText, $ExecutablePath)
+                    ) {
+                        $isRelated = $true
+                        break
+                    }
+                }
+            }
+
+            if ($isRelated) {
+                $matchingEvents += [PSCustomObject]@{
+                    Record = $eventRecord
+                    Message = $eventMessage
+                }
+
+                if ($matchingEvents.Count -eq 3) {
+                    break
+                }
+            }
+        }
+
+        foreach ($matchingEvent in $matchingEvents) {
+            $eventRecord = $matchingEvent.Record
+            $eventMessage = $matchingEvent.Message.Trim()
+            if ([string]::IsNullOrWhiteSpace($eventMessage)) {
+                $eventMessage = "<event message unavailable>"
+            }
+
+            $eventTime = if ($null -eq $eventRecord.TimeCreated) {
+                "<unknown>"
+            }
+            else {
+                $eventRecord.TimeCreated.ToString("o")
+            }
+
+            Write-Warning `
+                -Message (
+                    "Crosio startup failure event: Time=$eventTime; Provider='$($eventRecord.ProviderName)'; " +
+                    "EventId=$($eventRecord.Id); PID=$StartedProcessId`n$eventMessage"
+                ) `
+                -WarningAction Continue
+        }
+    }
+    catch {
+        Write-Warning `
+            -Message "Could not format the Application event log startup diagnostics: $($_.Exception.Message)" `
+            -WarningAction Continue
+    }
+}
+
 $startedProcess = $null
 $startedProcessId = $null
+$processStartedAt = $null
 $mainWindow = $null
 $smokeException = $null
 $cleanupException = $null
 
 try {
+    $processStartedAt = [DateTime]::Now
     $startedProcess = Start-Process `
         -FilePath $resolvedApplicationPath `
         -WorkingDirectory $workingDirectory `
@@ -250,6 +361,17 @@ finally {
             $startedProcess.Dispose()
         }
     }
+}
+
+if (
+    $null -ne $smokeException -and
+    $null -ne $processStartedAt -and
+    $null -ne $startedProcessId
+) {
+    Write-CrosioStartupFailureEvents `
+        -StartedAt $processStartedAt `
+        -ExecutablePath $resolvedApplicationPath `
+        -StartedProcessId $startedProcessId
 }
 
 if ($null -ne $cleanupException) {

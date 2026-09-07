@@ -275,7 +275,11 @@ std::wstring GetAbsoluteLongPath(const std::filesystem::path& input)
 
 struct PidlDeleter final
 {
-    void operator()(ITEMIDLIST* value) const noexcept
+    // The Windows SDK marks PIDLs as unaligned on 64-bit platforms. Preserve
+    // the SDK pointer type through unique_ptr instead of dropping its qualifier.
+    using pointer = PIDLIST_ABSOLUTE;
+
+    void operator()(pointer value) const noexcept
     {
         CoTaskMemFree(value);
     }
