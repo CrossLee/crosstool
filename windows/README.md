@@ -2,6 +2,12 @@
 
 这里是 Crosio 的 Windows 11 原生版本工程。它复用 macOS 版的产品行为和验收标准，但所有系统能力都使用 Windows 原生 API 重新实现，不直接移植 SwiftUI/AppKit 代码。
 
+## 普通用户安装
+
+在 GitHub 的 Windows 预览版发布页下载 `Crosio-Windows-版本号-Setup.exe`，双击后按中文向导点击“安装”和“完成”。不需要解压、不需要输入 PowerShell 命令，也不需要另装 .NET 或其他运行库。安装后从开始菜单打开 Crosio；卸载使用 Windows“设置 → 应用 → 已安装的应用”。
+
+当前安装器和应用是未签名预览版，可能出现 Windows 未知发布者或安全提示，不代表已经有正式代码签名。安装需要管理员授权，不会导入信任证书或关闭系统安全功能。更多说明见 [TESTING.md](TESTING.md)。下文中的 PowerShell 命令仅供开发者构建和验证，不是用户安装步骤。
+
 ## 当前边界
 
 已经落盘并接入工程的部分包括：
@@ -33,6 +39,7 @@ windows/
 │   ├── Test-PackageLayout.ps1    # 清单/CLSID/打包载荷静态一致性检查
 │   ├── build-msix.ps1            # 单架构 MSIX
 │   ├── build-msixbundle.ps1      # x64 + ARM64 MSIXBundle
+│   ├── build-setup.ps1           # 包含完整 MSIXBundle 的中文 Setup.exe
 │   └── Install-Crosio.ps1        # 签名包或 unsigned CI 包安装入口
 ├── src/
 │   ├── Crosio.Windows.App/
@@ -109,6 +116,14 @@ Explorer 扩展采用系统 COM surrogate：`com:SurrogateServer` 直接注册 D
 ```
 
 构建成功后的输出在 `windows\artifacts\release`。其中包括两个单架构 `.msix`、一个 `.msixbundle`、SHA-256 校验值、构建信息、安装脚本和 `THIRD_PARTY_NOTICES.md`；第三方声明也包含在每个 MSIX 及 unpackaged 测试目录内。
+
+继续生成普通用户双击安装的 EXE（以下开关仅明确允许开发测试用的 unsigned MSIX，不允许坏签名）：
+
+```powershell
+.\scripts\build-setup.ps1 -Version 0.1.1.0 -AllowUnsignedTestPackage
+```
+
+图形安装器由 NSIS 构建，嵌入本次生成的组合包，在后台交给 Windows 包管理器注册，不额外制造第二个卸载条目。CI 必须在 Windows 11 ARM64 环境实际点击同一 `Setup.exe` 的安装与完成按钮，再核对注册内容并启动 Crosio；发布页提供通过该流程的 EXE 和对应 SHA-256。
 
 例如版本 `0.1.1.0` 在无证书时生成：
 

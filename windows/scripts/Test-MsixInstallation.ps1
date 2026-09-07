@@ -3,6 +3,11 @@ param(
     [Parameter(Mandatory)]
     [string]$PackageDirectory,
 
+    [switch]$UseSetup,
+
+    [ValidateRange(15, 240)]
+    [int]$InstallerTimeoutSeconds = 120,
+
     [ValidateRange(5, 60)]
     [int]$LaunchTimeoutSeconds = 60
 )
@@ -28,10 +33,8 @@ if ($osArchitecture -ne "ARM64") {
 $releaseDirectory = (Resolve-Path -LiteralPath $PackageDirectory).Path
 $installerPath = Join-Path $releaseDirectory "Install-Crosio.ps1"
 $buildInfoPath = Join-Path $releaseDirectory "build-info.json"
-foreach ($requiredPath in @($installerPath, $buildInfoPath)) {
-    if (-not (Test-Path -LiteralPath $requiredPath -PathType Leaf)) {
-        throw "Missing installation test input: $requiredPath"
-    }
+if (-not (Test-Path -LiteralPath $buildInfoPath -PathType Leaf)) {
+    throw "Missing installation test input: $buildInfoPath"
 }
 $bundles = @(Get-ChildItem -LiteralPath $releaseDirectory -Filter "*.msixbundle" -File)
 if ($bundles.Count -ne 1) {
@@ -41,6 +44,11 @@ $buildInfo = Get-Content -LiteralPath $buildInfoPath -Raw | ConvertFrom-Json
 $expectedVersion = [version]$buildInfo.version
 if ($buildInfo.product -ne "Crosio" -or @($buildInfo.architectures) -notcontains "ARM64") {
     throw "The build information does not identify an ARM64 Crosio release."
+}
+$setupPath = Join-Path $releaseDirectory "Crosio-Windows-$($buildInfo.version)-Setup.exe"
+$selectedInstallerPath = if ($UseSetup) { $setupPath } else { $installerPath }
+if (-not (Test-Path -LiteralPath $selectedInstallerPath -PathType Leaf)) {
+    throw "Missing installation test input: $selectedInstallerPath"
 }
 
 # Read the bundle identity without extracting or running anything from it.
@@ -70,6 +78,436 @@ if ($existingPackages.Count -ne 0) {
 }
 if (@(Get-Process -Name "Crosio" -ErrorAction SilentlyContinue).Count -ne 0) {
     throw "A Crosio process is already running. Refusing to redirect or terminate it."
+}
+
+if ($UseSetup) {
+    Add-Type -AssemblyName UIAutomationClient
+    Add-Type -AssemblyName UIAutomationTypes
+}
+
+function ConvertFrom-UnicodeCodePoints {
+    param(
+        [Parameter(Mandatory)]
+        [int[]]$CodePoints
+    )
+
+    return (-join @($CodePoints | ForEach-Object { [char]$_ }))
+}
+
+# Windows PowerShell 5.1 treats UTF-8 files without a BOM as ANSI. Keep this
+# script ASCII-only and construct the installer's localized UI contract from
+# Unicode code points so matching is stable on every runner code page.
+$script:SetupWindowTitle = "Crosio " + (ConvertFrom-UnicodeCodePoints @(0x5B89, 0x88C5))
+$script:SetupInstallButtonPrefix = ConvertFrom-UnicodeCodePoints @(0x5B89, 0x88C5)
+$script:SetupFinishButtonPrefix = ConvertFrom-UnicodeCodePoints @(0x5B8C, 0x6210)
+$script:SetupFailureText = ConvertFrom-UnicodeCodePoints @(0x5B89, 0x88C5, 0x5931, 0x8D25)
+$script:SetupRunOptionPrefix = (ConvertFrom-UnicodeCodePoints @(0x7ACB, 0x5373, 0x6253, 0x5F00)) + " Crosio"
+$script:SetupCompletionText = (ConvertFrom-UnicodeCodePoints @(
+    0x8BF7, 0x5728, 0x5F00, 0x59CB, 0x83DC, 0x5355, 0x4E2D, 0x641C, 0x7D22)) + " Crosio"
+
+function Add-OwnedInstallerProcessHandle {
+    param(
+        [Parameter(Mandatory)]
+        [hashtable]$StartTimes,
+
+        [Parameter(Mandatory)]
+        [hashtable]$Handles,
+
+        [Parameter(Mandatory)]
+        [int]$ProcessId
+    )
+
+    if ($Handles.ContainsKey($ProcessId) -or -not $StartTimes.ContainsKey($ProcessId)) {
+        return
+    }
+
+    try {
+        $candidateProcess = Get-Process -Id $ProcessId -ErrorAction Stop
+        $actualStart = $candidateProcess.StartTime.ToUniversalTime()
+        $expectedStart = [DateTime]$StartTimes[$ProcessId]
+        if ([Math]::Abs(($actualStart - $expectedStart).TotalSeconds) -gt 2) {
+            $candidateProcess.Dispose()
+            return
+        }
+
+        # Opening the handle binds this Process object to the exact process,
+        # rather than a PID that could later be reused during cleanup.
+        $null = $candidateProcess.Handle
+        $Handles[$ProcessId] = $candidateProcess
+    }
+    catch {
+        # A short-lived helper can disappear before its handle is retained. It
+        # cannot own a UI element by the time the next UI Automation query runs.
+    }
+}
+
+function Update-OwnedInstallerProcesses {
+    param(
+        [Parameter(Mandatory)]
+        [hashtable]$StartTimes,
+
+        [Parameter(Mandatory)]
+        [hashtable]$Handles,
+
+        [Parameter(Mandatory)]
+        [DateTime]$NotBeforeUtc
+    )
+
+    $snapshot = @(Get-CimInstance -ClassName Win32_Process -ErrorAction Stop)
+    do {
+        $added = $false
+        foreach ($candidate in $snapshot) {
+            $candidateProcessId = [int]$candidate.ProcessId
+            $parentProcessId = [int]$candidate.ParentProcessId
+            if ($StartTimes.ContainsKey($candidateProcessId) -or
+                -not $StartTimes.ContainsKey($parentProcessId)) {
+                continue
+            }
+
+            $createdUtc = ([DateTime]$candidate.CreationDate).ToUniversalTime()
+            if ($createdUtc -lt $NotBeforeUtc) {
+                continue
+            }
+
+            $StartTimes[$candidateProcessId] = $createdUtc
+            Add-OwnedInstallerProcessHandle -StartTimes $StartTimes -Handles $Handles -ProcessId $candidateProcessId
+            $added = $true
+        }
+    }
+    while ($added)
+}
+
+function Test-OwnedInstallerProcessAlive {
+    param(
+        [Parameter(Mandatory)]
+        [hashtable]$StartTimes,
+
+        [Parameter(Mandatory)]
+        [hashtable]$Handles
+    )
+
+    foreach ($processIdValue in @($StartTimes.Keys)) {
+        Add-OwnedInstallerProcessHandle -StartTimes $StartTimes -Handles $Handles -ProcessId ([int]$processIdValue)
+        if (-not $Handles.ContainsKey($processIdValue)) {
+            continue
+        }
+
+        try {
+            $ownedProcess = $Handles[$processIdValue]
+            $ownedProcess.Refresh()
+            if (-not $ownedProcess.HasExited) {
+                return $true
+            }
+        }
+        catch {
+            # A retained process handle can disappear between Refresh and
+            # HasExited; the next retained descendant still keeps the tree live.
+        }
+    }
+
+    return $false
+}
+
+function Get-OwnedVisibleWindows {
+    param(
+        [Parameter(Mandatory)]
+        [hashtable]$StartTimes,
+
+        [Parameter(Mandatory)]
+        [hashtable]$Handles
+    )
+
+    $desktop = [System.Windows.Automation.AutomationElement]::RootElement
+    $windows = $desktop.FindAll(
+        [System.Windows.Automation.TreeScope]::Children,
+        [System.Windows.Automation.Condition]::TrueCondition)
+    foreach ($window in $windows) {
+        try {
+            $windowProcessId = [int]$window.Current.ProcessId
+            if (-not $StartTimes.ContainsKey($windowProcessId)) {
+                continue
+            }
+
+            Add-OwnedInstallerProcessHandle -StartTimes $StartTimes -Handles $Handles -ProcessId $windowProcessId
+            if ($Handles.ContainsKey($windowProcessId) -and
+                $window.Current.NativeWindowHandle -ne 0 -and
+                -not $window.Current.IsOffscreen) {
+                Write-Output $window
+            }
+        }
+        catch [System.Windows.Automation.ElementNotAvailableException] {
+            # The window closed while the desktop snapshot was being inspected.
+        }
+    }
+}
+
+function Assert-NoVisibleInstallerConsole {
+    param(
+        [Parameter(Mandatory)]
+        [AllowEmptyCollection()]
+        [object[]]$Windows,
+
+        [Parameter(Mandatory)]
+        [hashtable]$Handles
+    )
+
+    foreach ($window in $Windows) {
+        try {
+            $windowProcessId = [int]$window.Current.ProcessId
+            if (-not $Handles.ContainsKey($windowProcessId)) {
+                continue
+            }
+
+            $processName = $Handles[$windowProcessId].ProcessName
+            if ($processName -in @("powershell", "pwsh", "conhost", "OpenConsole", "cmd")) {
+                throw "The GUI installer exposed a visible PowerShell or console window (PID=$windowProcessId)."
+            }
+        }
+        catch [System.Windows.Automation.ElementNotAvailableException] {
+            # A disappearing window cannot remain visibly exposed.
+        }
+    }
+}
+
+function Get-AutomationElementText {
+    param(
+        [Parameter(Mandatory)]
+        $Window
+    )
+
+    $elements = $Window.FindAll(
+        [System.Windows.Automation.TreeScope]::Descendants,
+        [System.Windows.Automation.Condition]::TrueCondition)
+    $names = foreach ($element in $elements) {
+        try {
+            $name = [string]$element.Current.Name
+            if (-not [string]::IsNullOrWhiteSpace($name)) {
+                $name
+            }
+        }
+        catch [System.Windows.Automation.ElementNotAvailableException] {
+        }
+    }
+
+    return ($names -join "`n")
+}
+
+function Find-EnabledSetupButton {
+    param(
+        [Parameter(Mandatory)]
+        $Window,
+
+        [Parameter(Mandatory)]
+        [string[]]$NamePrefixes
+    )
+
+    $buttonCondition = [System.Windows.Automation.PropertyCondition]::new(
+        [System.Windows.Automation.AutomationElement]::ControlTypeProperty,
+        [System.Windows.Automation.ControlType]::Button)
+    $buttons = $Window.FindAll(
+        [System.Windows.Automation.TreeScope]::Descendants,
+        $buttonCondition)
+    foreach ($button in $buttons) {
+        try {
+            if (-not $button.Current.IsEnabled) {
+                continue
+            }
+
+            $buttonName = [string]$button.Current.Name
+            foreach ($prefix in $NamePrefixes) {
+                if ($buttonName.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) {
+                    return $button
+                }
+            }
+        }
+        catch [System.Windows.Automation.ElementNotAvailableException] {
+        }
+    }
+
+    return $null
+}
+
+function Wait-ForSetupAction {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Stage,
+
+        [Parameter(Mandatory)]
+        [string[]]$ButtonPrefixes,
+
+        [Parameter(Mandatory)]
+        [DateTime]$DeadlineUtc,
+
+        [Parameter(Mandatory)]
+        [DateTime]$NotBeforeUtc,
+
+        [Parameter(Mandatory)]
+        [hashtable]$StartTimes,
+
+        [Parameter(Mandatory)]
+        [hashtable]$Handles
+    )
+
+    $noProcessSince = $null
+    while ([DateTime]::UtcNow -lt $DeadlineUtc) {
+        Update-OwnedInstallerProcesses -StartTimes $StartTimes -Handles $Handles -NotBeforeUtc $NotBeforeUtc
+        $visibleWindows = @(Get-OwnedVisibleWindows -StartTimes $StartTimes -Handles $Handles)
+        Assert-NoVisibleInstallerConsole -Windows $visibleWindows -Handles $Handles
+
+        foreach ($window in $visibleWindows) {
+            try {
+                if ($window.Current.Name -ne $script:SetupWindowTitle) {
+                    continue
+                }
+
+                $pageText = Get-AutomationElementText -Window $window
+                if ($pageText.Contains($script:SetupFailureText) -or
+                    $pageText -match "Installation failed|Setup failed") {
+                    throw "The Crosio GUI installer displayed its installation-failed page during $Stage."
+                }
+
+                $button = Find-EnabledSetupButton -Window $window -NamePrefixes $ButtonPrefixes
+                if ($null -ne $button) {
+                    return [pscustomobject]@{
+                        Window = $window
+                        Button = $button
+                        ProcessId = [int]$window.Current.ProcessId
+                        PageText = $pageText
+                    }
+                }
+            }
+            catch [System.Windows.Automation.ElementNotAvailableException] {
+            }
+        }
+
+        if (Test-OwnedInstallerProcessAlive -StartTimes $StartTimes -Handles $Handles) {
+            $noProcessSince = $null
+        }
+        elseif ($null -eq $noProcessSince) {
+            $noProcessSince = [DateTime]::UtcNow
+        }
+        elseif (([DateTime]::UtcNow - $noProcessSince).TotalSeconds -ge 1) {
+            throw "The Crosio GUI installer exited before the $Stage action became available."
+        }
+
+        Start-Sleep -Milliseconds 100
+    }
+
+    throw "The Crosio GUI installer did not expose the $Stage action within $InstallerTimeoutSeconds seconds."
+}
+
+function Invoke-SetupAction {
+    param(
+        [Parameter(Mandatory)]
+        $Button,
+
+        [Parameter(Mandatory)]
+        [string]$Stage
+    )
+
+    try {
+        $invokePattern = $Button.GetCurrentPattern(
+            [System.Windows.Automation.InvokePattern]::Pattern)
+        [void]$invokePattern.Invoke()
+    }
+    catch {
+        throw "The Crosio GUI installer's $Stage button could not be invoked through UI Automation: $($_.Exception.Message)"
+    }
+}
+
+function Assert-SetupRunOptionUnchecked {
+    param(
+        [Parameter(Mandatory)]
+        $Window
+    )
+
+    $checkBoxCondition = [System.Windows.Automation.PropertyCondition]::new(
+        [System.Windows.Automation.AutomationElement]::ControlTypeProperty,
+        [System.Windows.Automation.ControlType]::CheckBox)
+    $checkBoxes = $Window.FindAll(
+        [System.Windows.Automation.TreeScope]::Descendants,
+        $checkBoxCondition)
+    $runCheckBox = $null
+    foreach ($checkBox in $checkBoxes) {
+        try {
+            $checkBoxName = [string]$checkBox.Current.Name
+            if ($checkBoxName.StartsWith($script:SetupRunOptionPrefix, [StringComparison]::OrdinalIgnoreCase) -or
+                $checkBoxName.StartsWith("Run Crosio", [StringComparison]::OrdinalIgnoreCase)) {
+                $runCheckBox = $checkBox
+                break
+            }
+        }
+        catch [System.Windows.Automation.ElementNotAvailableException] {
+        }
+    }
+
+    if ($null -eq $runCheckBox) {
+        throw "The Crosio GUI installer's Finish page has no optional run-Crosio checkbox."
+    }
+
+    $togglePattern = $runCheckBox.GetCurrentPattern(
+        [System.Windows.Automation.TogglePattern]::Pattern)
+    if ($togglePattern.Current.ToggleState -ne [System.Windows.Automation.ToggleState]::Off) {
+        throw "The Crosio GUI installer selected its run-Crosio option by default."
+    }
+}
+
+function Wait-ForOwnedInstallerExit {
+    param(
+        [Parameter(Mandatory)]
+        [DateTime]$DeadlineUtc,
+
+        [Parameter(Mandatory)]
+        [DateTime]$NotBeforeUtc,
+
+        [Parameter(Mandatory)]
+        [hashtable]$StartTimes,
+
+        [Parameter(Mandatory)]
+        [hashtable]$Handles
+    )
+
+    while ([DateTime]::UtcNow -lt $DeadlineUtc) {
+        Update-OwnedInstallerProcesses -StartTimes $StartTimes -Handles $Handles -NotBeforeUtc $NotBeforeUtc
+        $visibleWindows = @(Get-OwnedVisibleWindows -StartTimes $StartTimes -Handles $Handles)
+        Assert-NoVisibleInstallerConsole -Windows $visibleWindows -Handles $Handles
+        if (-not (Test-OwnedInstallerProcessAlive -StartTimes $StartTimes -Handles $Handles)) {
+            return
+        }
+
+        Start-Sleep -Milliseconds 100
+    }
+
+    throw "The Crosio GUI installer did not exit within $InstallerTimeoutSeconds seconds."
+}
+
+function Stop-OwnedInstallerProcesses {
+    param(
+        [Parameter(Mandatory)]
+        [hashtable]$Handles,
+
+        [Parameter(Mandatory)]
+        [int]$RootProcessId
+    )
+
+    # Stop retained descendants before their retained root. Every Process
+    # object already owns a kernel handle opened while ancestry was verified.
+    $orderedProcessIds = @($Handles.Keys | Sort-Object { if ([int]$_ -eq $RootProcessId) { 1 } else { 0 } })
+    foreach ($processIdValue in $orderedProcessIds) {
+        $ownedProcess = $Handles[$processIdValue]
+        try {
+            $ownedProcess.Refresh()
+            if (-not $ownedProcess.HasExited) {
+                $ownedProcess.Kill()
+                if (-not $ownedProcess.WaitForExit(3000)) {
+                    throw "PID $processIdValue did not stop."
+                }
+            }
+        }
+        catch {
+            throw "Owned installer process cleanup failed for PID ${processIdValue}: $($_.Exception.Message)"
+        }
+    }
 }
 
 if ($null -eq ("Crosio.MsixAcceptance.Native" -as [type])) {
@@ -263,9 +701,82 @@ $failure = $null
 $cleanupFailures = [System.Collections.Generic.List[string]]::new()
 $activatedProcessId = $null
 $mainWindow = [IntPtr]::Zero
+$setupRootProcess = $null
+$setupRootProcessId = 0
+$setupUiProcessIds = [System.Collections.Generic.HashSet[int]]::new()
+$setupOwnedStartTimes = @{}
+$setupOwnedHandles = @{}
+$setupNotBeforeUtc = [DateTime]::MinValue
 try {
     $installationAttempted = $true
-    & $installerPath -PackagePath $bundles[0].FullName
+    if ($UseSetup) {
+        $setupNotBeforeUtc = [DateTime]::UtcNow.AddSeconds(-1)
+        $setupDeadlineUtc = [DateTime]::UtcNow.AddSeconds($InstallerTimeoutSeconds)
+        $setupRootProcess = Start-Process `
+            -FilePath $setupPath `
+            -WorkingDirectory $releaseDirectory `
+            -PassThru
+        $setupRootProcessId = $setupRootProcess.Id
+        $null = $setupRootProcess.Handle
+        $setupRootStartUtc = $setupRootProcess.StartTime.ToUniversalTime()
+        $setupOwnedStartTimes[$setupRootProcessId] = $setupRootStartUtc
+        $setupOwnedHandles[$setupRootProcessId] = $setupRootProcess
+
+        $installAction = Wait-ForSetupAction `
+            -Stage "Install" `
+            -ButtonPrefixes @($script:SetupInstallButtonPrefix, "Install") `
+            -DeadlineUtc $setupDeadlineUtc `
+            -NotBeforeUtc $setupNotBeforeUtc `
+            -StartTimes $setupOwnedStartTimes `
+            -Handles $setupOwnedHandles
+        [void]$setupUiProcessIds.Add($installAction.ProcessId)
+        Invoke-SetupAction -Button $installAction.Button -Stage "Install"
+
+        $finishAction = Wait-ForSetupAction `
+            -Stage "Finish" `
+            -ButtonPrefixes @($script:SetupFinishButtonPrefix, "Finish") `
+            -DeadlineUtc $setupDeadlineUtc `
+            -NotBeforeUtc $setupNotBeforeUtc `
+            -StartTimes $setupOwnedStartTimes `
+            -Handles $setupOwnedHandles
+        [void]$setupUiProcessIds.Add($finishAction.ProcessId)
+        if (-not $finishAction.PageText.Contains($script:SetupCompletionText)) {
+            throw "The Crosio GUI installer did not reach its expected successful Finish page."
+        }
+        Assert-SetupRunOptionUnchecked -Window $finishAction.Window
+        Invoke-SetupAction -Button $finishAction.Button -Stage "Finish"
+
+        Wait-ForOwnedInstallerExit `
+            -DeadlineUtc $setupDeadlineUtc `
+            -NotBeforeUtc $setupNotBeforeUtc `
+            -StartTimes $setupOwnedStartTimes `
+            -Handles $setupOwnedHandles
+
+        $exitProcessIds = @($setupRootProcessId) + @($setupUiProcessIds)
+        foreach ($exitProcessId in @($exitProcessIds | Select-Object -Unique)) {
+            if (-not $setupOwnedHandles.ContainsKey([int]$exitProcessId)) {
+                throw "The GUI installer did not retain an exact handle for UI process $exitProcessId."
+            }
+
+            $exitProcess = $setupOwnedHandles[[int]$exitProcessId]
+            $exitProcess.Refresh()
+            if (-not $exitProcess.HasExited) {
+                throw "The GUI installer process $exitProcessId remained active after Finish."
+            }
+            if ($exitProcess.ExitCode -ne 0) {
+                throw "The GUI installer process $exitProcessId returned exit code $($exitProcess.ExitCode)."
+            }
+        }
+
+        if (@(Get-Process -Name "Crosio" -ErrorAction SilentlyContinue).Count -ne 0) {
+            throw "The GUI installer launched Crosio even though its optional launch checkbox was clear."
+        }
+        Write-Host "Crosio Setup.exe GUI flow completed through UI Automation."
+    }
+    else {
+        & $installerPath -PackagePath $bundles[0].FullName
+    }
+
     $packages = @(Get-AppxPackage -Name "Crosio.Windows" -ErrorAction Stop)
     if ($packages.Count -ne 1) { throw "Installation did not register exactly one Crosio package." }
     $package = $packages[0]
@@ -333,6 +844,21 @@ finally {
         try { $activation.Stop() }
         catch { $cleanupFailures.Add("Process cleanup: $($_.Exception.Message)") }
     }
+    if ($UseSetup -and $null -ne $setupRootProcess) {
+        try {
+            Update-OwnedInstallerProcesses `
+                -StartTimes $setupOwnedStartTimes `
+                -Handles $setupOwnedHandles `
+                -NotBeforeUtc $setupNotBeforeUtc
+        }
+        catch { $cleanupFailures.Add("Installer process discovery cleanup: $($_.Exception.Message)") }
+        try {
+            Stop-OwnedInstallerProcesses `
+                -Handles $setupOwnedHandles `
+                -RootProcessId $setupRootProcessId
+        }
+        catch { $cleanupFailures.Add("Installer process cleanup: $($_.Exception.Message)") }
+    }
     if ($installationAttempted) {
         try {
             # Also recover a registration created before the installer threw.
@@ -349,6 +875,10 @@ finally {
         }
         catch { $cleanupFailures.Add("Package cleanup: $($_.Exception.Message)") }
     }
+    foreach ($ownedInstallerHandle in @($setupOwnedHandles.Values)) {
+        try { $ownedInstallerHandle.Dispose() }
+        catch { $cleanupFailures.Add("Installer handle cleanup: $($_.Exception.Message)") }
+    }
 }
 
 if ($null -ne $failure -or $cleanupFailures.Count -gt 0) {
@@ -357,4 +887,5 @@ if ($null -ne $failure -or $cleanupFailures.Count -gt 0) {
     $messages += @($cleanupFailures)
     throw "Windows 11 ARM64 MSIX acceptance failed: $($messages -join ' | ')"
 }
-Write-Host "Windows 11 ARM64 MSIX acceptance passed: Version=$expectedVersion; Package=$installedPackageFullName; PID=$activatedProcessId; HWND=$mainWindow. Test process stopped and test package removed."
+$installerMode = if ($UseSetup) { "Setup.exe GUI" } else { "direct MSIX" }
+Write-Host "Windows 11 ARM64 $installerMode acceptance passed: Version=$expectedVersion; Package=$installedPackageFullName; PID=$activatedProcessId; HWND=$mainWindow. Test process stopped and test package removed."

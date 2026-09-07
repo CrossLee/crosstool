@@ -3,6 +3,16 @@
 The installed application also carries the upstream license and notice files
 under its `Licenses` directory.
 
+## NSIS 3.12 (graphical installer)
+
+The standalone Windows Setup executable is built with NSIS 3.12. Its installer
+engine, standard plug-ins, and zlib compressor are distributed under the
+zlib/libpng license. The NSIS license and copyright notices are included with
+the installer sources under `windows/installer/`; NSIS is not a separately
+installed application on the user's computer. Source and license:
+<https://nsis.sourceforge.io/> and
+<https://nsis.sourceforge.io/Docs/AppendixI.html>.
+
 ## Microsoft Windows App SDK 1.8.260804001
 
 Crosio uses the Microsoft Windows App SDK. The Microsoft software license
