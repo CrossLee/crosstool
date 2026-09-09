@@ -77,11 +77,11 @@ final class AppModel: ObservableObject {
         self.screenshotsDirectory = directories.screenshots
         self.screenshotDraftsDirectory = directories.drafts
         self.globalShortcuts = shortcutLoadResult.shortcuts
-        CrosioApplicationDelegate.recordingModel = screenRecording
-        CrosioApplicationDelegate.mainWindowOpenRequestBroker.install { [weak self] in
+        OnePawApplicationDelegate.recordingModel = screenRecording
+        OnePawApplicationDelegate.mainWindowOpenRequestBroker.install { [weak self] in
             self?.presentMainWindow()
         }
-        CrosioApplicationDelegate.imageOpenRequestBroker.install { [weak self] urls in
+        OnePawApplicationDelegate.imageOpenRequestBroker.install { [weak self] urls in
             self?.presentImageCompression(importing: urls)
         }
 
@@ -280,7 +280,7 @@ final class AppModel: ObservableObject {
     }
 
     private func translateSelectedTextFromShortcut() {
-        // Resolve the target application before any async work. Crosio only
+        // Resolve the target application before any async work. OnePaw only
         // activates its own window after the selection has been captured.
         let applicationPID = NSWorkspace.shared.frontmostApplication?.processIdentifier
         selectedTextTranslationTask?.cancel()
@@ -301,7 +301,7 @@ final class AppModel: ObservableObject {
                 }
             case .permissionRequired:
                 payload = .message(
-                    "快捷翻译需要辅助功能权限。请在“系统设置 → 隐私与安全性 → 辅助功能”允许 Crosio，授权后重新按快捷键。"
+                    "快捷翻译需要辅助功能权限。请在“系统设置 → 隐私与安全性 → 辅助功能”允许一爪，授权后重新按快捷键。"
                 )
             case .noSelection:
                 payload = .message("没有读取到选中文字。请先在其他 App 中选中一段中文或英文，再按快捷键。")
@@ -465,10 +465,10 @@ final class AppModel: ObservableObject {
 
         isPreparingColorSampling = true
         Task {
-            // Realtime sampling excludes Crosio from ScreenCaptureKit. Hide
-            // Crosio's windows first so the pixels under the pointer match
+            // Realtime sampling excludes OnePaw from ScreenCaptureKit. Hide
+            // OnePaw's windows first so the pixels under the pointer match
             // what the user can actually see, including over image pins.
-            let hiddenWindows = TemporarilyHiddenCrosioWindows()
+            let hiddenWindows = TemporarilyHiddenAppWindows()
             defer {
                 hiddenWindows.restore()
                 isPreparingColorSampling = false
@@ -500,7 +500,7 @@ final class AppModel: ObservableObject {
 
         isPreparingColorSampling = true
         Task {
-            let hiddenWindows = TemporarilyHiddenCrosioWindows()
+            let hiddenWindows = TemporarilyHiddenAppWindows()
             defer {
                 hiddenWindows.restore()
                 isPreparingColorSampling = false
@@ -515,7 +515,7 @@ final class AppModel: ObservableObject {
         }
     }
 
-    /// Full-screen sampling temporarily orders out Crosio windows. Refuse to
+    /// Full-screen sampling temporarily orders out OnePaw windows. Refuse to
     /// start while a sheet or modal panel is visible so that AppKit keeps its
     /// parent/child window relationship intact and no dialog is lost.
     private func bringColorSamplingBlockingWindowToFrontIfNeeded() -> Bool {
@@ -587,7 +587,7 @@ final class AppModel: ObservableObject {
     func shareRecording(_ url: URL) {
         guard url.standardizedFileURL.deletingLastPathComponent()
             == screenRecording.recordingsDirectory.standardizedFileURL else {
-            notice = "只能分享 Crosio 已完成的录屏文件"
+            notice = "只能分享一爪已完成的录屏文件"
             return
         }
         do {
@@ -655,11 +655,11 @@ final class AppModel: ObservableObject {
         case .delayedScreen:
             notice = "5 秒后截取鼠标所在屏幕，可在倒计时窗口中取消"
         case .framedScreen:
-            notice = "3 秒后截取整屏并加入 Crosio Mac 外框"
+            notice = "3 秒后截取整屏并加入一爪 Mac 外框"
         case .multiWindow:
             notice = "请在系统选择器中勾选要合成的多个窗口"
         case .scrolling:
-            notice = "Crosio 将暂时隐藏；只框选可滚动内容，随后在蓝框内平稳滚动"
+            notice = "一爪将暂时隐藏；只框选可滚动内容，随后在蓝框内平稳滚动"
         case .region, .window, .screen:
             notice = nil
         }
@@ -684,7 +684,7 @@ final class AppModel: ObservableObject {
                 notice = "已取消截图"
             } catch ScreenshotServiceError.permissionDenied {
                 hasScreenCapturePermission = false
-                notice = "截图权限尚未生效。若刚刚已允许，请完全退出并重新打开 Crosio；否则请在系统设置中开启"
+                notice = "截图权限尚未生效。若刚刚已允许，请完全退出并重新打开一爪；否则请在系统设置中开启"
             } catch {
                 notice = "截图失败：\(error.localizedDescription)"
             }
@@ -829,7 +829,7 @@ final class AppModel: ObservableObject {
             } else {
                 switch requestResult {
                 case .contentAvailable:
-                    notice = "已允许截图权限，请完全退出并重新打开 Crosio 后再截图"
+                    notice = "已允许截图权限，请完全退出并重新打开一爪后再截图"
                 case .userDeclined:
                     presentScreenCaptureSettingsGuidance()
                 case .failed(let message):
@@ -840,13 +840,13 @@ final class AppModel: ObservableObject {
     }
 
     private func presentScreenCaptureSettingsGuidance() {
-        notice = "请在系统设置的录屏权限页开启 Crosio，完成后完全退出并重新打开 App"
+        notice = "请在系统设置的录屏权限页开启一爪，完成后完全退出并重新打开 App"
         NSApp.activate(ignoringOtherApps: true)
 
         let alert = NSAlert()
         alert.alertStyle = .informational
         alert.messageText = "需要在系统设置中开启截图权限"
-        alert.informativeText = "macOS 尚未授予 Crosio 截图权限。如果刚才没有出现授权框，或你之前选择过“不允许”，请在列表中开启它。列表里没有 Crosio 时，请点“+”并选择：\n/Applications/Crosio.app\n\n开启后，请完全退出并重新打开 Crosio。"
+        alert.informativeText = "macOS 尚未授予一爪截图权限。如果刚才没有出现授权框，或你之前选择过“不允许”，请在列表中开启它。列表里没有一爪时，请点“+”并选择：\n\(Bundle.main.bundleURL.path)\n\n开启后，请完全退出并重新打开一爪。"
         alert.addButton(withTitle: "打开系统设置")
         alert.addButton(withTitle: "稍后")
         if alert.runModal() == .alertFirstButtonReturn {
@@ -1013,7 +1013,7 @@ final class AppModel: ObservableObject {
             .sorted()
             .map(String.init)
             .joined(separator: ", ")
-        return "快捷键 \(labels) 无法启用，可能已被另一个 Crosio、macOS 或其他应用占用（错误码 \(codes)）"
+        return "快捷键 \(labels) 无法启用，可能已被另一个一爪、macOS 或其他应用占用（错误码 \(codes)）"
     }
 
     private static func inactiveShortcutSetMessage(
@@ -1059,7 +1059,7 @@ final class AppModel: ObservableObject {
     private static func loadWebResources() -> (index: Data, assets: [String: StaticWebAsset]) {
         let index = Bundle.module.url(forResource: "index", withExtension: "html", subdirectory: "Web")
             .flatMap { try? Data(contentsOf: $0) }
-            ?? Data("<!doctype html><meta charset=\"utf-8\"><h1>Crosio</h1>".utf8)
+            ?? Data("<!doctype html><meta charset=\"utf-8\"><h1>一爪</h1>".utf8)
 
         var assets: [String: StaticWebAsset] = [:]
         if let cssURL = Bundle.module.url(forResource: "app", withExtension: "css", subdirectory: "Web"),
@@ -1138,7 +1138,7 @@ private enum GlobalShortcutSettingsError: LocalizedError {
              .rollbackFailed(let message):
             return message
         case .unavailable:
-            return "全局快捷键服务暂时不可用，请重新打开 Crosio 后再试"
+            return "全局快捷键服务暂时不可用，请重新打开一爪后再试"
         }
     }
 }

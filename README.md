@@ -17,7 +17,7 @@
 
 ## 下载
 
-| 平台 | 最新版本 | 安装包 | 发布状态 |
+| 平台 | 最新已发布版本 | 安装包 | 发布状态 |
 | :--- | :--- | :--- | :--- |
 | macOS 14+ · Apple Silicon / Intel | [0.6.5](https://github.com/CrossLee/onepaw/releases/tag/v0.6.5) | **[下载 DMG](https://github.com/CrossLee/onepaw/releases/download/v0.6.5/Crosio-0.6.5-macos-universal2.dmg)** | Developer ID 签名 · Apple 公证 |
 | Windows 11 · x64 / ARM64 | [0.1.20.0](https://github.com/CrossLee/onepaw/releases/tag/windows-v0.1.20.0-preview) | **[下载 EXE](https://github.com/CrossLee/onepaw/releases/download/windows-v0.1.20.0-preview/Crosio-Windows-0.1.20.0-Setup.exe)** | 预览版 · 尚未签名 |
@@ -26,7 +26,9 @@ Mac 备用安装方式：[PKG](https://github.com/CrossLee/onepaw/releases/downl
 
 Windows 安装器可直接双击，自动选择架构，不需要操作 PowerShell。当前仍是未签名预览版，可能出现“未知发布者”提示，部分设备策略会阻止安装；不要关闭安全保护来绕过限制。[签名进度与说明](docs/windows-signing.md)
 
-一爪 OnePaw 是新的品牌名称。当前已发布应用、窗口与安装文件仍使用 **Crosio**，猫咪伸爪图标已更新；既有安装身份和数据目录继续保留。GitHub 的 “Source code” 是源码，不是安装包。
+**更名版正在验证，尚未公开发布。** macOS 0.6.6 与 Windows 0.1.21.0 的界面、菜单和新安装包已统一使用“一爪”；上表仍是上一已发布版本，下载后的名称可能不同。既有安装身份和数据目录继续保留。[更名与升级兼容说明](docs/branding.md)
+
+GitHub 的 “Source code” 是源码，不是安装包。
 
 ## 截图之后，接着把事做完
 
@@ -36,12 +38,12 @@ Windows 安装器可直接双击，自动选择架构，不需要操作 PowerShe
   <img src="docs/assets/macos-capture.jpg" alt="macOS 实际截图工具页，包含区域、窗口、全屏、延时、带壳、多窗口和长截图入口" width="1040">
 </p>
 
-<p align="center"><sub>真实 macOS 界面，非设计效果图。采集自本机 0.6.4（45），保留实际名称 Crosio；快捷键以你的设置为准。最新 0.6.5 已使用同系列猫咪图标。</sub></p>
+<p align="center"><sub>真实 macOS 界面，采集自本地 0.6.6（47）开发构建，非正式发行包。截图页展示首次授权状态；快捷键以你的设置为准。</sub></p>
 
 ## 常用工具，一处就够
 
 - **截图、标注、识字** — 画笔、箭头、矩形、马赛克；Mac 使用本机 Vision 自动 OCR。在截图编辑器中按 `S` 把当前截图变成置顶小贴图，滚轮缩放，`Esc` 关闭。
-- **图片压缩** — 本地批量处理，兼顾清晰度与体积，不覆盖原图。Mac 的 Finder“打开方式 → Crosio”可自动压缩 PNG、JPEG/JFIF、HEIC、TIFF，保持原格式和后缀，完成后定位结果。
+- **图片压缩** — 本地批量处理，兼顾清晰度与体积，不覆盖原图。Mac 的 Finder“打开方式 → 一爪”可自动压缩 PNG、JPEG/JFIF、HEIC、TIFF，保持原格式和后缀，完成后定位结果。
 - **屏幕录制** — 录屏幕、窗口或指定区域，按需保留系统声音和鼠标指针。Mac 当前不采集麦克风，成片默认只保存在本机。
 - **屏幕取色** — 提取标准 sRGB 颜色，复制 HEX、RGB 或 HSL，保存最近使用的颜色。
 - **本机翻译** — 双栏翻译，也可为选中文字设置快捷中英互译。Mac 需要 macOS 15+；两平台首次准备语言模型可能需要联网。
@@ -57,20 +59,22 @@ Windows 安装器可直接双击，自动选择架构，不需要操作 PowerShe
   <img src="docs/assets/macos-color-picker.jpg" alt="macOS 实际取色页面，显示 HEX、RGB、HSL 与最近颜色" width="1040" loading="lazy">
 </p>
 
-<p align="center"><sub>同一 macOS 安装版实拍。图片未重绘，未替换界面文字。</sub></p>
+<p align="center"><sub>同一 macOS 开发构建实拍。图片未重绘，未替换界面文字。</sub></p>
 
 ## 安装与第一次使用
 
 <details>
-<summary><strong>macOS · 拖入应用程序即可</strong></summary>
+<summary><strong>macOS · 新安装与旧名称升级</strong></summary>
 
-1. 升级前先退出正在运行的 Crosio。打开 DMG，将 `Crosio.app` 拖入“应用程序”。
+1. 安装前先退出旧版。首次安装可打开 DMG，将其中的 App 拖入“应用程序”。
 2. 从“应用程序”启动；它常驻菜单栏，不在 Dock 或 `Command+Tab` 中常驻。需要主界面时从菜单栏打开。
 3. 首次截图、录屏按提示授予屏幕录制权限；快捷翻译读取其他 App 选中文字时才需要辅助功能权限。
 
 Universal 2 同时支持 Apple Silicon 与 Intel，无需 Rosetta。macOS 14 可用除本机翻译以外的其他功能；本机翻译需要 macOS 15+。
 
-PKG 也可用于集中部署及旧 v0.1.x 实体迁移；ZIP 解压后手动放入“应用程序”，不执行旧实体迁移。安装并打开一次后，系统才会注册 Finder 服务；若“复制路径”未显示，可检查系统键盘快捷键中的“服务”。
+**从旧名称升级到一爪，请等待 0.6.6 更名版 PKG。** 新 PKG 会先校验和备份原应用，再归档旧名称实体；请勿提前删除旧应用或用户数据。当前上表的 0.6.5 安装包不包含这次更名。DMG/ZIP 不自动迁移旧名称，直接拖入会留下两个应用目录。
+
+安装并打开一次后，系统才会注册 Finder 服务；若“复制路径”未显示，可检查系统键盘快捷键中的“服务”。
 
 </details>
 
@@ -78,8 +82,8 @@ PKG 也可用于集中部署及旧 v0.1.x 实体迁移；ZIP 解压后手动放�
 <summary><strong>Windows · 双击中文安装程序</strong></summary>
 
 1. 使用自己的、具有管理员权限的 Windows 账户；升级前先退出旧版。
-2. 双击 `Crosio-Windows-0.1.20.0-Setup.exe`，确认系统管理员授权，按向导点击“安装”“完成”。
-3. 从开始菜单打开 Crosio，或在安装完成页选择立即打开。
+2. 双击下载的 `Setup.exe`，确认系统管理员授权，按向导点击“安装”“完成”。更名版文件名为 `一爪-Windows-版本号-Setup.exe`。
+3. 从开始菜单打开应用，或在安装完成页选择立即打开；更名版开始菜单显示“一爪”。
 
 需要 Windows 11 build 22000 或更高版本，支持 x64 / ARM64，安装包包含运行所需组件。安装本身无需联网；首次下载翻译模型需要联网。
 
@@ -110,7 +114,7 @@ swift test
 ./scripts/build-app.sh
 ```
 
-开发 App 输出到 `dist/development/Crosio.app`。开发脚本优先使用 Apple Development 证书，没有证书时使用 ad-hoc 签名；这不等于正式发行签名。
+开发 App 输出到 `dist/development.noindex/一爪.app`。开发脚本优先使用 Apple Development 证书，没有证书时使用 ad-hoc 签名；这不等于正式发行签名。输出目录避免被系统索引成重复应用。
 
 正式 DMG、PKG、ZIP 需要 Developer ID 证书及 `notarytool` 钥匙串 profile：
 

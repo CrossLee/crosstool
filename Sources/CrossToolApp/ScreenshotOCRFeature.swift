@@ -271,7 +271,7 @@ actor VisionScreenshotTextRecognizer: ScreenshotTextRecognizing {
         fullImageWidth: Int
     ) async throws -> [ScreenshotOCRFragment] {
         let request = VNRecognizeTextRequest()
-        // Crosio supports macOS 14. Vision revision 3 is the newest revision
+        // OnePaw supports macOS 14. Vision revision 3 is the newest revision
         // available there and supports Chinese, rotation and handwriting.
         request.revision = 3
         request.recognitionLevel = .accurate

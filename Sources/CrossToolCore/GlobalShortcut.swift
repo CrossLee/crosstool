@@ -1,6 +1,6 @@
 import Foundation
 
-/// Every Crosio tool action that can be invoked by a global shortcut.
+/// Every OnePaw tool action that can be invoked by a global shortcut.
 ///
 /// The explicit raw values are persistence identifiers. They must stay stable
 /// across releases even if a command's user-facing title changes.
@@ -47,7 +47,7 @@ public enum GlobalShortcutCommand: String, CaseIterable, Identifiable, Hashable,
     }
 
     /// Converts a command-keyed configuration into the string-keyed object
-    /// persisted by Crosio. Unknown future keys can therefore be ignored by an
+    /// persisted by OnePaw. Unknown future keys can therefore be ignored by an
     /// older build without making the whole payload undecodable.
     public static func persistedBindings(
         from shortcuts: [Self: GlobalShortcut]

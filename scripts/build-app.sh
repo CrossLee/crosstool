@@ -3,12 +3,14 @@
 set -euo pipefail
 
 PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-APP_BUNDLE_NAME="Crosio"
-APP_BUNDLE="$PROJECT_DIR/dist/development/$APP_BUNDLE_NAME.app"
+APP_BUNDLE_NAME="一爪"
+APP_BUNDLE="$PROJECT_DIR/dist/development.noindex/$APP_BUNDLE_NAME.app"
 CONTENTS_DIR="$APP_BUNDLE/Contents"
 MACOS_DIR="$CONTENTS_DIR/MacOS"
 RESOURCES_DIR="$CONTENTS_DIR/Resources"
 ICON_SOURCE="$PROJECT_DIR/Resources/AppIcon.icns"
+source "$PROJECT_DIR/scripts/verify-app-brand.sh"
+onepaw_verify_bundle_brand "$PROJECT_DIR/Resources/Info.plist" "source Info.plist"
 
 if [[ ! -f "$ICON_SOURCE" ]]; then
     echo "找不到 App 图标：$ICON_SOURCE" >&2
@@ -47,7 +49,7 @@ if [[ -z "$RESOURCE_BUNDLE" || ! -d "$RESOURCE_BUNDLE" ]]; then
     exit 1
 fi
 
-if [[ "$APP_BUNDLE" != "$PROJECT_DIR/dist/development/Crosio.app" ]]; then
+if [[ "$APP_BUNDLE" != "$PROJECT_DIR/dist/development.noindex/一爪.app" ]]; then
     echo "拒绝清理意外的 App 路径：$APP_BUNDLE" >&2
     exit 1
 fi
@@ -62,6 +64,7 @@ ditto "$BIN_DIR/CrossToolApp" "$MACOS_DIR/CrossToolApp"
 chmod +x "$MACOS_DIR/CrossToolApp"
 
 plutil -lint "$CONTENTS_DIR/Info.plist" >/dev/null
+onepaw_verify_bundle_brand "$CONTENTS_DIR/Info.plist" "development app"
 ICON_DECLARATION="$(plutil -extract CFBundleIconFile raw -o - "$CONTENTS_DIR/Info.plist" 2>/dev/null || true)"
 if [[ "$ICON_DECLARATION" != "AppIcon.icns" ]]; then
     echo "Info.plist 必须声明 CFBundleIconFile=AppIcon.icns，当前值：${ICON_DECLARATION:-<未设置>}" >&2

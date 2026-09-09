@@ -20,7 +20,7 @@
         </dict>
     </array>
     <key>CFBundleDisplayName</key>
-    <string>Crosio</string>
+    <string>一爪</string>
     <key>CFBundleExecutable</key>
     <string>CrossToolApp</string>
     <key>CFBundleIdentifier</key>
@@ -30,13 +30,13 @@
     <key>CFBundleIconFile</key>
     <string>AppIcon.icns</string>
     <key>CFBundleName</key>
-    <string>Crosio</string>
+    <string>一爪</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>0.6.5</string>
+    <string>0.6.6</string>
     <key>CFBundleVersion</key>
-    <string>46</string>
+    <string>47</string>
     <key>LSUIElement</key>
     <true/>
     <key>LSMinimumSystemVersion</key>
@@ -44,9 +44,9 @@
     <key>NSHighResolutionCapable</key>
     <true/>
     <key>NSLocalNetworkUsageDescription</key>
-    <string>Crosio 需要在当前局域网中提供文件和文字的浏览器收发服务。</string>
+    <string>一爪需要在当前局域网中提供文件和文字的浏览器收发服务。</string>
     <key>NSScreenCaptureUsageDescription</key>
-    <string>Crosio 需要读取你选择的屏幕或窗口，用于截图、录屏、实时提取屏幕颜色，并在你开启时录制系统声音。</string>
+    <string>一爪需要读取你选择的屏幕或窗口，用于截图、录屏、实时提取屏幕颜色，并在你开启时录制系统声音。</string>
     <key>NSServices</key>
     <array>
         <dict>
@@ -58,7 +58,7 @@
             <key>NSMessage</key>
             <string>copyPaths</string>
             <key>NSPortName</key>
-            <string>Crosio</string>
+            <string>一爪</string>
             <key>NSSendTypes</key>
             <array>
                 <string>public.file-url</string>

@@ -121,13 +121,13 @@ final class LoginItemSettingsModel: ObservableObject {
     var statusMessage: String {
         switch status {
         case .disabled:
-            return "已关闭；Crosio 不会在登录 Mac 时自动启动。"
+            return "已关闭；一爪不会在登录 Mac 时自动启动。"
         case .enabled:
-            return "已开启；登录 Mac 后会自动启动 Crosio。"
+            return "已开启；登录 Mac 后会自动启动一爪。"
         case .requiresApproval:
             return "已登记，但需要在系统登录项中允许后才能自动启动。"
         case .unavailable:
-            return "系统找不到可注册的 Crosio 登录项，请从“应用程序”文件夹运行正式版后重试。"
+            return "系统找不到可注册的一爪登录项，请从“应用程序”文件夹运行正式版后重试。"
         }
     }
 
@@ -192,7 +192,7 @@ struct LoginItemSettingsSection: View {
     var body: some View {
         Section("启动") {
             Toggle(
-                "登录时自动启动 Crosio",
+                "登录时自动启动一爪",
                 isOn: Binding(
                     get: { model.isRequested },
                     set: { model.setRequested($0) }

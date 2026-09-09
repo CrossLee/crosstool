@@ -132,7 +132,7 @@ final class ScreenRegionSelectionCoordinator: NSObject, NSWindowDelegate {
             window.isReleasedWhenClosed = false
             window.tabbingMode = .disallowed
             // The overlay is closed before any frame is captured, and the SCK
-            // filter already excludes Crosio's own windows. Keeping it
+            // filter already excludes OnePaw's own windows. Keeping it
             // shareable also lets macOS accessibility/automation tools see the
             // selector instead of treating the screen as windowless.
             window.sharingType = .readOnly

@@ -3,7 +3,7 @@ import SwiftUI
 
 @main
 struct CrossToolApp: App {
-    @NSApplicationDelegateAdaptor(CrosioApplicationDelegate.self)
+    @NSApplicationDelegateAdaptor(OnePawApplicationDelegate.self)
     private var appDelegate
     @StateObject private var model = AppModel()
     @StateObject private var mainWindowPresenter = MainWindowPresenter()
@@ -28,7 +28,7 @@ private struct MenuBarStatusLabel: View {
 
     var body: some View {
         Label(
-            model.screenRecording.isRecording ? "Crosio 正在录屏" : "Crosio",
+            model.screenRecording.isRecording ? "\(ApplicationBrand.displayName)正在录屏" : ApplicationBrand.displayName,
             systemImage: model.screenRecording.isRecording
                 ? "record.circle.fill"
                 : (model.isServerRunning ? "square.and.arrow.up.fill" : "square.and.arrow.up")
@@ -86,7 +86,7 @@ final class MainWindowPresenter: ObservableObject {
             }
         let hostingController = NSHostingController(rootView: rootView)
         let window = NSWindow(contentViewController: hostingController)
-        window.title = "Crosio"
+        window.title = ApplicationBrand.displayName
         window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
         window.setContentSize(NSSize(width: 1_180, height: 780))
         window.contentMinSize = NSSize(width: 1_000, height: 620)

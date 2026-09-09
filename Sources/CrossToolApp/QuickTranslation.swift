@@ -93,7 +93,7 @@ enum SelectedTextCaptureResult: Equatable, Sendable {
 }
 
 /// Reads the current selection without synthesizing Copy or changing the
-/// clipboard. The global shortcut calls this before Crosio is activated, so
+/// clipboard. The global shortcut calls this before OnePaw is activated, so
 /// the focused accessibility element still belongs to the user's foreground
 /// application.
 @MainActor

@@ -3,12 +3,13 @@
 set -euo pipefail
 
 PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-APP_BUNDLE_NAME="Crosio"
-ASSET_PREFIX="Crosio"
+APP_BUNDLE_NAME="一爪"
+ASSET_PREFIX="一爪"
 EXECUTABLE_NAME="CrossToolApp"
 INFO_PLIST="$PROJECT_DIR/Resources/Info.plist"
 ICON_SOURCE="$PROJECT_DIR/Resources/AppIcon.icns"
 INSTALLER_SCRIPTS_DIR="$PROJECT_DIR/scripts/installer"
+source "$PROJECT_DIR/scripts/verify-app-brand.sh"
 TEAM_ID="8LSY655LKD"
 DEFAULT_APPLICATION_IDENTITY="Developer ID Application: Suzhou Qidian Storm Information Technology Co., Ltd. ($TEAM_ID)"
 DEFAULT_INSTALLER_IDENTITY="Developer ID Installer: Suzhou Qidian Storm Information Technology Co., Ltd. ($TEAM_ID)"
@@ -20,9 +21,9 @@ usage() {
 Usage: ./scripts/build-release.sh [--skip-notarization]
 
 Builds Developer ID signed release artifacts:
-  - a ZIP containing the notarized and stapled Crosio.app
-  - a notarized and stapled Crosio-*.dmg for drag-to-Applications install
-  - a notarized and stapled Crosio-*.pkg installer
+  - a ZIP containing the notarized and stapled 一爪.app
+  - a notarized and stapled 一爪-*.dmg for drag-to-Applications install
+  - a notarized and stapled 一爪-*.pkg installer (recommended for old-name upgrades)
   - SHA256SUMS.txt
 
 Environment:
@@ -33,6 +34,8 @@ Environment:
 
 --skip-notarization creates signed local QA artifacts only. Those artifacts are
 not suitable for a public GitHub release and are marked with "-unnotarized".
+DMG/ZIP do not migrate old application names. Use PKG to upgrade an installed
+Crosio.app or crosstool.app with identity checks and recoverable backups.
 USAGE
 }
 
@@ -44,6 +47,7 @@ die() {
 verify_image_document_registration() {
     local plist_path="$1"
     local label="$2"
+    onepaw_verify_bundle_brand "$plist_path" "$label" || die "$label has an invalid product name or compatibility identifier"
     local document_type_count
     local document_type_entry
     local type_name
@@ -95,6 +99,7 @@ done
 [[ -f "$ICON_SOURCE" ]] || die "missing app icon: $ICON_SOURCE"
 [[ -x "$INSTALLER_SCRIPTS_DIR/preinstall" ]] || die "missing executable installer preinstall script"
 [[ -x "$INSTALLER_SCRIPTS_DIR/postinstall" ]] || die "missing executable installer postinstall script"
+[[ -f "$INSTALLER_SCRIPTS_DIR/migration-common.sh" ]] || die "missing installer migration helper"
 
 VERSION="$(plutil -extract CFBundleShortVersionString raw -o - "$INFO_PLIST")"
 BUILD_NUMBER="$(plutil -extract CFBundleVersion raw -o - "$INFO_PLIST")"
@@ -104,7 +109,7 @@ ICON_DECLARATION="$(plutil -extract CFBundleIconFile raw -o - "$INFO_PLIST" 2>/d
 AGENT_APP="$(plutil -extract LSUIElement raw -expect bool -o - "$INFO_PLIST" 2>/dev/null || true)"
 BACKGROUND_ONLY="$(plutil -extract LSBackgroundOnly raw -expect bool -o - "$INFO_PLIST" 2>/dev/null || true)"
 
-[[ "$VERSION" =~ ^[0-9]+([.][0-9]+){1,2}([._-][A-Za-z0-9]+)*$ ]] || die "unsafe release version: $VERSION"
+[[ "$VERSION" =~ ^[0-9]+([.][0-9]+){1,2}$ ]] || die "release version must be numeric for safe upgrade comparison: $VERSION"
 [[ "$BUILD_NUMBER" =~ ^[0-9]+$ ]] || die "CFBundleVersion must be numeric: $BUILD_NUMBER"
 [[ "$BUNDLE_ID" == "com.cross.crosstool" ]] || die "unexpected bundle identifier: $BUNDLE_ID"
 [[ "$ICON_DECLARATION" == "AppIcon.icns" ]] || die "Info.plist must declare CFBundleIconFile=AppIcon.icns"
@@ -171,7 +176,7 @@ CONTENTS_DIR="$APP_BUNDLE/Contents"
 MACOS_DIR="$CONTENTS_DIR/MacOS"
 RESOURCES_DIR="$CONTENTS_DIR/Resources"
 
-echo "Building Crosio $VERSION ($BUILD_NUMBER) for ${ARCHS[*]}..."
+echo "Building 一爪 $VERSION ($BUILD_NUMBER) for ${ARCHS[*]}..."
 swift build --package-path "$PROJECT_DIR" -c release "${SWIFT_ARCH_ARGS[@]}"
 BIN_DIR="$(swift build --package-path "$PROJECT_DIR" -c release "${SWIFT_ARCH_ARGS[@]}" --show-bin-path)"
 RESOURCE_BUNDLE="$(find "$BIN_DIR" -maxdepth 1 -type d -name '*CrossToolApp.bundle' -print -quit)"
@@ -231,7 +236,7 @@ UNSIGNED_PKG="$STAGING_DIR/$APP_BUNDLE_NAME-unsigned.pkg"
 NOTARY_ZIP="$STAGING_DIR/$APP_BUNDLE_NAME-notary-upload.zip"
 DMG_ROOT="$STAGING_DIR/dmg-root"
 DMG_MOUNT_DIR="$STAGING_DIR/dmg-mount"
-DMG_VOLUME_NAME="Crosio"
+DMG_VOLUME_NAME="一爪"
 PKG_ROOT="$STAGING_DIR/pkg-root"
 COMPONENT_PLIST="$STAGING_DIR/components.plist"
 EXPANDED_PKG="$STAGING_DIR/expanded-pkg"
@@ -414,7 +419,10 @@ mkdir -p "$PKG_ROOT"
 mkdir -p "$STAGED_INSTALLER_SCRIPTS"
 /bin/cp -X "$INSTALLER_SCRIPTS_DIR/preinstall" "$STAGED_INSTALLER_SCRIPTS/preinstall"
 /bin/cp -X "$INSTALLER_SCRIPTS_DIR/postinstall" "$STAGED_INSTALLER_SCRIPTS/postinstall"
+/bin/cp -X "$INSTALLER_SCRIPTS_DIR/migration-common.sh" "$STAGED_INSTALLER_SCRIPTS/migration-common.sh"
+/bin/cp -X "$CONTENTS_DIR/Info.plist" "$STAGED_INSTALLER_SCRIPTS/expected-app.plist"
 chmod 755 "$STAGED_INSTALLER_SCRIPTS/preinstall" "$STAGED_INSTALLER_SCRIPTS/postinstall"
+chmod 644 "$STAGED_INSTALLER_SCRIPTS/migration-common.sh" "$STAGED_INSTALLER_SCRIPTS/expected-app.plist"
 ditto "$APP_BUNDLE" "$PKG_ROOT/$APP_BUNDLE_NAME.app"
 pkgbuild --analyze --root "$PKG_ROOT" "$COMPONENT_PLIST"
 
@@ -440,6 +448,7 @@ productsign --timestamp --sign "$INSTALLER_IDENTITY" "$UNSIGNED_PKG" "$PKG_PATH"
 PKG_SIGNATURE="$(pkgutil --check-signature "$PKG_PATH" 2>&1)"
 echo "$PKG_SIGNATURE"
 grep -Fq "Developer ID Installer:" <<< "$PKG_SIGNATURE" || die "PKG is not signed with Developer ID Installer"
+grep -Fq "($TEAM_ID)" <<< "$PKG_SIGNATURE" || die "PKG has an unexpected signing team"
 
 pkgutil --expand "$PKG_PATH" "$EXPANDED_PKG"
 PACKAGE_INFO="$EXPANDED_PKG/PackageInfo"
@@ -454,9 +463,13 @@ cmp -s "$INSTALLER_SCRIPTS_DIR/preinstall" "$EXPANDED_PKG/Scripts/preinstall" \
     || die "PKG preinstall script differs from its reviewed source"
 cmp -s "$INSTALLER_SCRIPTS_DIR/postinstall" "$EXPANDED_PKG/Scripts/postinstall" \
     || die "PKG postinstall script differs from its reviewed source"
+cmp -s "$INSTALLER_SCRIPTS_DIR/migration-common.sh" "$EXPANDED_PKG/Scripts/migration-common.sh" \
+    || die "PKG migration helper differs from its reviewed source"
+cmp -s "$CONTENTS_DIR/Info.plist" "$EXPANDED_PKG/Scripts/expected-app.plist" \
+    || die "PKG expected app metadata differs from its payload"
 pkgutil --payload-files "$PKG_PATH" \
     | grep -Eq "^(\\./)?${APP_BUNDLE_NAME}[.]app/Contents/MacOS/${EXECUTABLE_NAME}$" \
-    || die "PKG payload does not contain Crosio.app at its fixed root"
+    || die "PKG payload does not contain 一爪.app at its fixed root"
 pkgutil --payload-files "$PKG_PATH" \
     | grep -Eq "^(\\./)?${APP_BUNDLE_NAME}[.]app/Contents/Resources/AppIcon[.]icns$" \
     || die "PKG payload does not contain AppIcon.icns"
@@ -466,7 +479,7 @@ pkgutil --payload-files "$PKG_PATH" \
 
 pkgutil --expand-full "$PKG_PATH" "$EXPANDED_FULL_PKG"
 PKG_EXPANDED_INFO="$(find "$EXPANDED_FULL_PKG" -type f -path "*/$APP_BUNDLE_NAME.app/Contents/Info.plist" -print -quit)"
-[[ -n "$PKG_EXPANDED_INFO" ]] || die "expanded PKG payload has no Crosio.app Info.plist"
+[[ -n "$PKG_EXPANDED_INFO" ]] || die "expanded PKG payload has no 一爪.app Info.plist"
 PKG_EXPANDED_APP="${PKG_EXPANDED_INFO%/Contents/Info.plist}"
 [[ -f "$PKG_EXPANDED_APP/Contents/Resources/AppIcon.icns" ]] || die "expanded PKG payload is missing AppIcon.icns"
 cmp -s "$ICON_SOURCE" "$PKG_EXPANDED_APP/Contents/Resources/AppIcon.icns" || die "PKG payload icon differs from source icon"
@@ -488,8 +501,10 @@ if [[ "$SKIP_NOTARIZATION" == false ]]; then
 
     pkgutil --expand-full "$PKG_PATH" "$FINAL_EXPANDED_FULL_PKG"
     FINAL_PKG_INFO="$(find "$FINAL_EXPANDED_FULL_PKG" -type f -path "*/$APP_BUNDLE_NAME.app/Contents/Info.plist" -print -quit)"
-    [[ -n "$FINAL_PKG_INFO" ]] || die "stapled PKG payload has no Crosio.app Info.plist"
+    [[ -n "$FINAL_PKG_INFO" ]] || die "stapled PKG payload has no 一爪.app Info.plist"
     verify_image_document_registration "$FINAL_PKG_INFO" "stapled PKG payload Info.plist"
+    cmp -s "$ICON_SOURCE" "${FINAL_PKG_INFO%/Contents/Info.plist}/Contents/Resources/AppIcon.icns" \
+        || die "stapled PKG payload icon differs from source icon"
 fi
 
 (

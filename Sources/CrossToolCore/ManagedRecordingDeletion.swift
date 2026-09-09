@@ -11,9 +11,9 @@ public enum ManagedRecordingDeletionError: Error, Equatable, LocalizedError {
     public var errorDescription: String? {
         switch self {
         case .outsideRecordingsDirectory:
-            return "只能删除 Crosio 录屏文件夹中的成片"
+            return "只能删除一爪录屏文件夹中的成片"
         case .recordingsDirectoryUnavailable:
-            return "Crosio 录屏文件夹不可用"
+            return "一爪录屏文件夹不可用"
         case .symbolicLinkNotAllowed:
             return "为保护本机文件，不能删除符号链接"
         case .notARegularFile:

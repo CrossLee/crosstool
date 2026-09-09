@@ -18,7 +18,7 @@ enum ScreenshotFrameRenderError: LocalizedError {
     }
 }
 
-/// Renders an original, trademark-free Crosio laptop shell around a display
+/// Renders an original, trademark-free OnePaw laptop shell around a display
 /// capture. The source pixels are never stretched: the shell is calculated
 /// from the source aspect ratio and the screenshot is drawn 1:1 inside it.
 enum ScreenshotFrameRenderer {

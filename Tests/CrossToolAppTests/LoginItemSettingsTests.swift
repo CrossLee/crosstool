@@ -46,25 +46,25 @@ struct LoginItemSettingsTests {
 
         #expect(
             LoginItemInstallation.isEligible(
-                bundleURL: URL(fileURLWithPath: "/Applications/Crosio.app"),
+                bundleURL: URL(fileURLWithPath: "/Applications/一爪.app"),
                 homeDirectory: homeDirectory
             )
         )
         #expect(
             LoginItemInstallation.isEligible(
-                bundleURL: URL(fileURLWithPath: "/Users/tester/Applications/Crosio.app"),
+                bundleURL: URL(fileURLWithPath: "/Users/tester/Applications/一爪.app"),
                 homeDirectory: homeDirectory
             )
         )
         #expect(
             !LoginItemInstallation.isEligible(
-                bundleURL: URL(fileURLWithPath: "/Users/tester/Downloads/Crosio.app"),
+                bundleURL: URL(fileURLWithPath: "/Users/tester/Downloads/一爪.app"),
                 homeDirectory: homeDirectory
             )
         )
         #expect(
             !LoginItemInstallation.isEligible(
-                bundleURL: URL(fileURLWithPath: "/Applications/Crosio"),
+                bundleURL: URL(fileURLWithPath: "/Applications/一爪"),
                 homeDirectory: homeDirectory
             )
         )

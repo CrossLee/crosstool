@@ -21,7 +21,7 @@ protocol ScreenshotPasteboardWriting {
 }
 
 /// Writes eager image bytes instead of a file URL so the pasteboard remains
-/// usable after Crosio removes its managed screenshot draft.
+/// usable after OnePaw removes its managed screenshot draft.
 @MainActor
 struct ScreenshotPasteboardWriter: ScreenshotPasteboardWriting {
     private static let pngSignature = Data([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A])
@@ -32,7 +32,7 @@ struct ScreenshotPasteboardWriter: ScreenshotPasteboardWriting {
     }
 
     func writePNG(_ pngData: Data, tiffData: Data? = nil) throws {
-        // Every input is a Crosio-generated draft. Checking the signature is
+        // Every input is a OnePaw-generated draft. Checking the signature is
         // enough to reject an obviously invalid payload without decoding a
         // potentially 20-megapixel image on the main thread before the editor
         // can appear.

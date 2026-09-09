@@ -3,9 +3,9 @@ import Foundation
 import SwiftUI
 @preconcurrency import Translation
 
-/// The standalone text-translation destination used by Crosio's main window.
+/// The standalone text-translation destination used by OnePaw's main window.
 ///
-/// Apple introduced custom `TranslationSession` workflows on macOS 15. Crosio
+/// Apple introduced custom `TranslationSession` workflows on macOS 15. OnePaw
 /// still supports macOS 14, so the public page stays available there and shows
 /// an explicit compatibility state instead of silently sending text to a cloud
 /// service.
@@ -46,7 +46,7 @@ private struct TranslationUnavailablePage: View {
                         .foregroundStyle(Color.crossToolAccent)
                     Text("翻译需要 macOS 15 或更高版本")
                         .font(.title3.weight(.semibold))
-                    Text("Crosio 不会在旧系统上改用云端翻译。升级 macOS 后即可使用系统提供的本地翻译能力。")
+                    Text("一爪不会在旧系统上改用云端翻译。升级 macOS 后即可使用系统提供的本地翻译能力。")
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                         .frame(maxWidth: 520)
@@ -155,7 +155,7 @@ private struct TranslationAvailablePage: View {
                 Text("首次使用某个语言组合时，macOS 可能会请求下载对应语言模型。翻译结果不会自动加入课堂共享区。")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                Text("使用快捷翻译时，辅助功能权限只用于读取当前选中文字；Crosio 不会模拟复制，也不会改写剪贴板。")
+                Text("使用快捷翻译时，辅助功能权限只用于读取当前选中文字；一爪不会模拟复制，也不会改写剪贴板。")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

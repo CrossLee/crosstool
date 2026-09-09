@@ -25,7 +25,7 @@ struct MenuBarPanelView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-            Text("Crosio")
+            Text(ApplicationBrand.displayName)
                 .font(.title3.weight(.semibold))
 
             HStack(spacing: 10) {
@@ -169,8 +169,8 @@ struct MenuBarPanelView: View {
                 NSApp.terminate(nil)
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("退出 Crosio")
-            .help("完全退出 Crosio")
+            .accessibilityLabel("退出一爪")
+            .help("完全退出一爪")
         }
     }
 }

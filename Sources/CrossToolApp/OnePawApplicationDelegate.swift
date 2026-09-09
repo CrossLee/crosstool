@@ -66,7 +66,7 @@ final class ImageOpenRequestBroker {
 }
 
 @MainActor
-final class CrosioApplicationDelegate: NSObject, NSApplicationDelegate {
+final class OnePawApplicationDelegate: NSObject, NSApplicationDelegate {
     static weak var recordingModel: ScreenRecordingFeatureModel?
     static let mainWindowOpenRequestBroker = MainWindowOpenRequestBroker()
     static let imageOpenRequestBroker = ImageOpenRequestBroker()
@@ -108,7 +108,7 @@ final class CrosioApplicationDelegate: NSObject, NSApplicationDelegate {
         hasVisibleWindows flag: Bool
     ) -> Bool {
         // If a Finder Service or login item already started the menu-bar app in
-        // the background, explicitly opening Crosio later must still show it.
+        // the background, explicitly opening OnePaw later must still show it.
         Self.mainWindowOpenRequestBroker.receive()
         return false
     }

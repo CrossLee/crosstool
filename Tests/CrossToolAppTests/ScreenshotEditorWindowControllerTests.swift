@@ -132,11 +132,12 @@ struct ScreenshotEditorWindowControllerTests {
         ) == .ignore)
     }
 
-    @Test("Only an unobstructed visible Crosio main window is hidden")
+    @Test("Only an unobstructed visible OnePaw main window is hidden")
     func mainWindowHidingPolicyMatrix() {
         #expect(shouldHideMainWindow())
         #expect(!shouldHideMainWindow(isEditorWindow: true))
-        #expect(!shouldHideMainWindow(title: "编辑截图 — Crosio"))
+        #expect(!shouldHideMainWindow(title: "编辑截图 — 一爪"))
+        #expect(!shouldHideMainWindow(title: "Crosio"))
         #expect(!shouldHideMainWindow(isVisible: false))
         #expect(!shouldHideMainWindow(isMiniaturized: true))
         // Pinned panels and other non-main panels fail this boundary.
@@ -151,7 +152,7 @@ struct ScreenshotEditorWindowControllerTests {
         let sourceURL = try makeTemporaryPNG()
         defer { try? FileManager.default.removeItem(at: sourceURL) }
 
-        let mainWindow = makeWindow(title: "Crosio")
+        let mainWindow = makeWindow(title: "一爪")
         let controller = try ScreenshotEditorWindowController(
             sourceURL: sourceURL,
             originalWasAutomaticallyCopied: true,
@@ -204,8 +205,8 @@ struct ScreenshotEditorWindowControllerTests {
 
     @Test("Main window session commit and restore are terminal and idempotent")
     func mainWindowSessionCommitAndRestoreAreIdempotent() {
-        let mainWindow = makeWindow(title: "Crosio")
-        let editorWindow = makeWindow(title: "编辑截图 — Crosio")
+        let mainWindow = makeWindow(title: "一爪")
+        let editorWindow = makeWindow(title: "编辑截图 — 一爪")
         let windows = [mainWindow, editorWindow]
         defer { closeWindows(windows) }
 
@@ -358,7 +359,7 @@ struct ScreenshotEditorWindowControllerTests {
 
     private func shouldHideMainWindow(
         isEditorWindow: Bool = false,
-        title: String = "Crosio",
+        title: String = "一爪",
         isVisible: Bool = true,
         isMiniaturized: Bool = false,
         canBecomeMain: Bool = true,

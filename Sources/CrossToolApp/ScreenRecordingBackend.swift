@@ -4,7 +4,7 @@ import CoreVideo
 import Foundation
 @preconcurrency import ScreenCaptureKit
 
-/// The two content kinds supported by Crosio's macOS 14 recording backend.
+/// The two content kinds supported by OnePaw's macOS 14 recording backend.
 /// The system sharing picker is presented before capture begins.
 enum ScreenRecordingCaptureTarget: Sendable {
     case display
@@ -218,7 +218,7 @@ final class ScreenRecordingService {
     }
 
     /// Starts recording with a filter already resolved by the caller. This is
-    /// used for "record current display", where Crosio creates a display filter
+    /// used for "record current display", where OnePaw creates a display filter
     /// that excludes its own windows instead of presenting a second picker.
     func start(
         filter: SCContentFilter,

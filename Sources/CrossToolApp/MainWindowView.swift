@@ -354,7 +354,7 @@ private struct ScreenshotPermissionBanner: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("需要屏幕录制权限")
                     .font(.headline)
-                Text("首次截图会申请权限；若系统没有弹窗，将引导你在设置中添加 Crosio。授权后请完全退出并重新打开。")
+                Text("首次截图会申请权限；若系统没有弹窗，将引导你在设置中添加一爪。授权后请完全退出并重新打开。")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
@@ -551,7 +551,7 @@ private struct SettingsPage: View {
                 LabeledContent("操作", value: "服务 → 复制路径")
                 Text("在 Finder 中选中文件或文件夹，右键选择“服务 → 复制路径”。支持多选，每行一个完整路径；仅复制路径，不读取或修改文件内容。")
                     .foregroundStyle(.secondary)
-                Text("请将 Crosio 安装到“应用程序”并打开一次。若菜单未显示，请在 macOS 的键盘快捷键“服务”设置中检查是否已启用“复制路径”。")
+                Text("请将一爪安装到“应用程序”并打开一次。若菜单未显示，请在 macOS 的键盘快捷键“服务”设置中检查是否已启用“复制路径”。")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
@@ -562,7 +562,7 @@ private struct SettingsPage: View {
                     .disabled(true)
             }
             Section("存储") {
-                Text("Crosio 数据目录：~/Library/Application Support/crosstool（包含 Inbox、Screenshots 与 Recordings）")
+                Text("一爪数据目录：~/Library/Application Support/crosstool（包含 Inbox、Screenshots 与 Recordings）")
                     .foregroundStyle(.secondary)
             }
             GlobalShortcutSettingsSection()

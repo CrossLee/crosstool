@@ -79,7 +79,7 @@ struct GlobalShortcutSettingsSection: View {
 
             if commands.contains(.translateText) {
                 Label(
-                    "快捷翻译会读取当前 App 的选中文字，需要在 macOS“辅助功能”中允许 Crosio；只打开翻译页不需要此权限。",
+                    "快捷翻译会读取当前 App 的选中文字，需要在 macOS“辅助功能”中允许一爪；只打开翻译页不需要此权限。",
                     systemImage: "accessibility"
                 )
                 .font(.caption)

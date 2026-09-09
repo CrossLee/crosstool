@@ -92,12 +92,12 @@ struct ImageCompressionFeatureTests {
         defer { try? FileManager.default.removeItem(at: directory) }
 
         let source = directory.appendingPathComponent("lesson.png")
-        let firstOutput = directory.appendingPathComponent("lesson-crosio.jpg")
+        let firstOutput = directory.appendingPathComponent("lesson-一爪.jpg")
         try Data([1]).write(to: source)
         try Data([2]).write(to: firstOutput)
 
         let output = ImageCompressionService.uniqueOutputURL(for: source, format: .jpeg)
-        #expect(output.lastPathComponent == "lesson-crosio-2.jpg")
+        #expect(output.lastPathComponent == "lesson-一爪-2.jpg")
         #expect(output != source)
     }
 
@@ -109,7 +109,7 @@ struct ImageCompressionFeatureTests {
         defer { try? FileManager.default.removeItem(at: directory) }
 
         let source = directory.appendingPathComponent("lesson.png")
-        let existingOutput = directory.appendingPathComponent("lesson-crosio.jpg")
+        let existingOutput = directory.appendingPathComponent("lesson-一爪.jpg")
         let existingData = Data("keep me".utf8)
         try Data([0]).write(to: source)
         try existingData.write(to: existingOutput)
@@ -135,7 +135,7 @@ struct ImageCompressionFeatureTests {
         #expect(Set(outputs).count == 8)
         #expect(try Data(contentsOf: existingOutput) == existingData)
         let remainingNames = try FileManager.default.contentsOfDirectory(atPath: directory.path)
-        #expect(!remainingNames.contains { $0.hasPrefix(".crosio-compression-") })
+        #expect(!remainingNames.contains { $0.hasPrefix(".onepaw-compression-") })
     }
 
     @Test("Fallback recognizes destination-exists errors without deleting the destination")
@@ -264,7 +264,7 @@ struct ImageCompressionFeatureTests {
             return
         }
 
-        #expect(result.outputURL.lastPathComponent == "CrosioIcon-crosio.jpg")
+        #expect(result.outputURL.lastPathComponent == "CrosioIcon-一爪.jpg")
         #expect(result.compressedBytes < result.originalBytes)
         #expect(result.compressedBytes <= 200_000)
         #expect(result.metTargetSize)
@@ -313,7 +313,7 @@ struct ImageCompressionFeatureTests {
             Issue.record("The PNG fixture should produce a smaller same-format result")
             return
         }
-        #expect(result.outputURL.lastPathComponent == "Screenshot-crosio.PNG")
+        #expect(result.outputURL.lastPathComponent == "Screenshot-一爪.PNG")
         #expect(result.outputFormat == .png)
         #expect(result.compressedBytes < result.originalBytes)
         #expect(try Data(contentsOf: source) == originalData)
@@ -374,7 +374,7 @@ struct ImageCompressionFeatureTests {
             Issue.record("The JPEG fixture should produce a smaller same-format result")
             return
         }
-        #expect(result.outputURL.lastPathComponent == "Photo-crosio.JFIF")
+        #expect(result.outputURL.lastPathComponent == "Photo-一爪.JFIF")
         #expect(result.outputFormat == .jpeg)
         #expect(result.compressedBytes < result.originalBytes)
         #expect(try Data(contentsOf: jpegSource) == originalJPEG)

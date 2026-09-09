@@ -289,7 +289,7 @@ enum ScreenCaptureKitScreenshotBackend {
         }
     }
 
-    /// Resolves a display-bound filter. By default every Crosio window is
+    /// Resolves a display-bound filter. By default every OnePaw window is
     /// excluded, including floating utility panels that may be visible while
     /// a long-screenshot session is running.
     @MainActor

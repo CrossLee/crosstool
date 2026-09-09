@@ -136,7 +136,7 @@ final class ScreenshotEditorMainWindowSession {
         hasAttachedSheet: Bool
     ) -> Bool {
         !isEditorWindow
-            && title == "Crosio"
+            && title == ApplicationBrand.displayName
             && isVisible
             && !isMiniaturized
             && canBecomeMain
@@ -222,7 +222,7 @@ final class ScreenshotEditorWindowController: NSWindowController, NSWindowDelega
 
         let hostingController = NSHostingController(rootView: ScreenshotEditorView(model: model))
         let window = ScreenshotEditorWindow(contentViewController: hostingController)
-        window.title = "编辑截图 — Crosio"
+        window.title = "编辑截图 — 一爪"
         window.setContentSize(NSSize(width: 1120, height: 760))
         window.minSize = NSSize(width: 880, height: 580)
         window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
@@ -258,7 +258,7 @@ final class ScreenshotEditorWindowController: NSWindowController, NSWindowDelega
         bringToFront()
         // Activating the app can reorder an already-open SwiftUI Window back
         // onto the screen. Hide it only after the editor is key and visible so
-        // closing the editor cannot reveal the main Crosio window underneath.
+        // closing the editor cannot reveal the main OnePaw window underneath.
         let mainWindowSession = ScreenshotEditorMainWindowSession(
             editorWindow: window
         )

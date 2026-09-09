@@ -441,11 +441,11 @@ final class PinnedScreenshotPanel: NSPanel {
             defer: false
         )
 
-        title = "固定截图 — Crosio"
+        title = "固定截图 — 一爪"
         isReleasedWhenClosed = false
         isFloatingPanel = true
         // Clicking a nonactivating pin should make only that panel the
-        // keyboard target so Escape can close it without activating Crosio.
+        // keyboard target so Escape can close it without activating OnePaw.
         becomesKeyOnlyIfNeeded = false
         level = .floating
         hidesOnDeactivate = false

@@ -754,7 +754,7 @@ struct PinnedScreenshotFeatureTests {
         #expect(firstPin.isVisible)
         #expect(secondPin.isVisible)
 
-        let hiddenWindows = TemporarilyHiddenCrosioWindows()
+        let hiddenWindows = TemporarilyHiddenAppWindows()
 
         #expect(!mainWindow.isVisible)
         #expect(!firstPin.isVisible)

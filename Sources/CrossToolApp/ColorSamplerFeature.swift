@@ -165,7 +165,7 @@ final class ColorSamplerViewModel: ObservableObject {
     }
 }
 
-/// A self-contained page that can be placed directly in Crosio's sidebar.
+/// A self-contained page that can be placed directly in OnePaw's sidebar.
 @MainActor
 struct ColorSamplerPage: View {
     @EnvironmentObject private var appModel: AppModel
@@ -315,7 +315,7 @@ struct ColorSamplerPage: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text("最近颜色")
                         .font(.headline)
-                    Text("最多保留 12 个，退出 Crosio 后仍会保留")
+                    Text("最多保留 12 个，退出一爪后仍会保留")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

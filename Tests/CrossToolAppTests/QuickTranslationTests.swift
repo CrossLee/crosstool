@@ -4,15 +4,15 @@ import Testing
 
 @Test func quickTranslationDirectionRecognizesChineseEnglishAndMixedText() {
     #expect(
-        QuickTranslationDirectionResolver.direction(for: "你好，欢迎使用 Crosio")
+        QuickTranslationDirectionResolver.direction(for: "你好，欢迎使用一爪")
             == .chineseToEnglish
     )
     #expect(
-        QuickTranslationDirectionResolver.direction(for: "Hello, welcome to Crosio.")
+        QuickTranslationDirectionResolver.direction(for: "Hello, welcome to OnePaw.")
             == .englishToChinese
     )
     #expect(
-        QuickTranslationDirectionResolver.direction(for: "Crosio 快捷翻译")
+        QuickTranslationDirectionResolver.direction(for: "一爪快捷翻译")
             == .chineseToEnglish
     )
     #expect(QuickTranslationDirectionResolver.direction(for: " 123… ") == nil)

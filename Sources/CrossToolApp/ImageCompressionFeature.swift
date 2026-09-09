@@ -325,7 +325,7 @@ struct ImageCompressionService: ImageCompressing, Sendable {
         var sequence = 1
 
         while true {
-            let suffix = sequence == 1 ? "-crosio" : "-crosio-\(sequence)"
+            let suffix = sequence == 1 ? "-一爪" : "-一爪-\(sequence)"
             let candidate = directory
                 .appendingPathComponent(stem + suffix, isDirectory: false)
                 .appendingPathExtension(resolvedExtension)
@@ -347,7 +347,7 @@ struct ImageCompressionService: ImageCompressing, Sendable {
         let stem = sourceURL.deletingPathExtension().lastPathComponent
         let resolvedExtension = fileExtension ?? format.fileExtension
         let temporaryURL = directory.appendingPathComponent(
-            ".crosio-compression-\(UUID().uuidString).tmp",
+            ".onepaw-compression-\(UUID().uuidString).tmp",
             isDirectory: false
         )
         var sequence = 1
@@ -360,7 +360,7 @@ struct ImageCompressionService: ImageCompressing, Sendable {
         defer { try? fileManager.removeItem(at: temporaryURL) }
 
         while sequence < 100_000 {
-            let suffix = sequence == 1 ? "-crosio" : "-crosio-\(sequence)"
+            let suffix = sequence == 1 ? "-一爪" : "-一爪-\(sequence)"
             let candidate = directory
                 .appendingPathComponent(stem + suffix, isDirectory: false)
                 .appendingPathExtension(resolvedExtension)

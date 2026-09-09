@@ -5,6 +5,35 @@ import Testing
 
 @Suite("Application bundle configuration")
 struct ApplicationBundleConfigurationTests {
+    @Test("Chinese display branding preserves the installed application identity")
+    func sourceInfoPlistUsesOnePawBrandWithoutResettingIdentity() throws {
+        let info = try sourceInfoPlist()
+        #expect(ApplicationBrand.displayName == "一爪")
+        #expect(info["CFBundleName"] as? String == ApplicationBrand.displayName)
+        #expect(info["CFBundleDisplayName"] as? String == ApplicationBrand.displayName)
+        #expect(info["CFBundleIdentifier"] as? String == "com.cross.crosstool")
+        #expect(info["CFBundleExecutable"] as? String == "CrossToolApp")
+        for key in ["NSLocalNetworkUsageDescription", "NSScreenCaptureUsageDescription"] {
+            let description = try #require(info[key] as? String)
+            #expect(description.contains("一爪"))
+            #expect(!description.contains("Crosio"))
+        }
+    }
+
+    @Test("The browser sharing page uses the Chinese product name")
+    func sharingWebPageUsesOnePawBrand() throws {
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let html = try String(contentsOf: root.appendingPathComponent(
+            "Sources/CrossToolApp/Resources/Web/index.html"
+        ), encoding: .utf8)
+        #expect(html.contains("<title>一爪 · 课堂共享区</title>"))
+        #expect(html.contains("由一爪提供") || html.contains("由 一爪 提供"))
+        #expect(!html.contains("Crosio"))
+    }
+
     @Test("The approved OnePaw artwork is packaged as a multi-resolution application icon")
     func sourceAppIconContainsDesktopAndRetinaSizes() throws {
         let root = URL(fileURLWithPath: #filePath)
@@ -28,7 +57,7 @@ struct ApplicationBundleConfigurationTests {
         #expect(icon.representations.allSatisfy { $0.pixelsWide == $0.pixelsHigh })
     }
 
-    @Test("Crosio is a UI-element app without becoming background-only")
+    @Test("OnePaw is a UI-element app without becoming background-only")
     func sourceInfoPlistUsesUIElementPresentation() throws {
         let projectRoot = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
@@ -51,7 +80,7 @@ struct ApplicationBundleConfigurationTests {
         }
     }
 
-    @Test("Crosio is an alternate Open With handler for images")
+    @Test("OnePaw is an alternate Open With handler for images")
     func sourceInfoPlistRegistersImageDocuments() throws {
         let info = try sourceInfoPlist()
         let documentTypes = try #require(info["CFBundleDocumentTypes"] as? [[String: Any]])

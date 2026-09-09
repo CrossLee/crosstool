@@ -2,7 +2,7 @@ import AppKit
 import Foundation
 
 /// Copies only the paths supplied by a Services request, without opening or
-/// resolving the selected files and without changing Crosio's window state.
+/// resolving the selected files and without changing OnePaw's window state.
 @MainActor
 final class CopyPathServiceProvider: NSObject {
     private static let legacyFilenamesType = NSPasteboard.PasteboardType("NSFilenamesPboardType")

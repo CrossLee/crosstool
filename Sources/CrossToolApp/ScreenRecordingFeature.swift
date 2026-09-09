@@ -22,7 +22,7 @@ enum ScreenRecordingSource: String, CaseIterable, Identifiable, Sendable {
     var summary: String {
         switch self {
         case .currentDisplay:
-            return "录制鼠标所在屏幕，并从画面中排除 Crosio"
+            return "录制鼠标所在屏幕，并从画面中排除一爪"
         case .region:
             return "拖拽框选一个固定区域，只录制框内画面"
         case .window:
@@ -99,7 +99,7 @@ final class ScreenRecordingFeatureModel: ObservableObject {
     private var recordingStartedAt: Date?
     private var isFinalizing = false
     private var activeOperationID: UUID?
-    private var activeRegionHiddenWindows: TemporarilyHiddenCrosioWindows?
+    private var activeRegionHiddenWindows: TemporarilyHiddenAppWindows?
     private var cancellationInProgress = false
 
     convenience init() {
@@ -215,21 +215,21 @@ final class ScreenRecordingFeatureModel: ObservableObject {
                         options: options
                     )
                 case .region:
-                    let hiddenWindows = TemporarilyHiddenCrosioWindows()
+                    let hiddenWindows = TemporarilyHiddenAppWindows()
                     self.activeRegionHiddenWindows = hiddenWindows
-                    // Let WindowServer expose the content behind Crosio before
+                    // Let WindowServer expose the content behind OnePaw before
                     // the full-screen selection overlays are presented.
                     try await Task.sleep(for: .milliseconds(120))
                     try await self.service.startRegion(
                         destinationURL: draftURL,
                         options: options
                     )
-                    // The recording filter excludes Crosio. Restore only the
+                    // The recording filter excludes OnePaw. Restore only the
                     // detached image pins so the user can reference them while
                     // interacting with the selected app; keep the main window
                     // hidden until recording reaches a terminal state.
                     hiddenWindows.restorePinnedScreenshotWindows()
-                    // The captured filter excludes Crosio, but keeping the App
+                    // The captured filter excludes OnePaw, but keeping the App
                     // active would still route keys and clicks away from the
                     // selected application underneath the hidden windows.
                     NSApp.deactivate()
@@ -773,7 +773,7 @@ struct ScreenRecordingPage: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("录屏需要屏幕与系统音频录制权限")
                     .font(.headline)
-                Text("授权后请完全退出并重新打开 Crosio；取色功能不需要此权限。")
+                Text("授权后请完全退出并重新打开一爪；取色功能不需要此权限。")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }

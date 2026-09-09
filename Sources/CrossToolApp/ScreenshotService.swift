@@ -49,7 +49,7 @@ enum ScreenshotMode: String, CaseIterable, Identifiable {
         case .delayedScreen:
             return "倒计时 5 秒后截取鼠标所在屏幕"
         case .framedScreen:
-            return "倒计时后把整屏放入 Crosio Mac 外框"
+            return "倒计时后把整屏放入一爪 Mac 外框"
         case .multiWindow:
             return "使用系统选择器选择多个窗口并合成"
         case .scrolling:
@@ -200,18 +200,18 @@ final class ScreenshotService: @unchecked Sendable {
 
     @MainActor
     private func captureScrollingRegion() async throws -> URL {
-        let hiddenWindows = TemporarilyHiddenCrosioWindows()
+        let hiddenWindows = TemporarilyHiddenAppWindows()
         defer { hiddenWindows.restore() }
 
         do {
             // Give WindowServer a moment to expose the real target content.
-            // The capture filter excludes Crosio, so the selector must not let
-            // users frame an area while looking at a Crosio window that will
+            // The capture filter excludes OnePaw, so the selector must not let
+            // users frame an area while looking at a OnePaw window that will
             // disappear from the actual pixels.
             try await Task.sleep(for: .milliseconds(120))
             let selection = try await ScreenRegionSelectionCoordinator.shared
                 .selectRegion()
-            // The selector temporarily activates Crosio. Return focus to the
+            // The selector temporarily activates OnePaw. Return focus to the
             // target application before the first frame and before the user
             // starts scrolling; the session overlay itself is nonactivating.
             NSApp.deactivate()
@@ -338,7 +338,7 @@ final class ScreenshotService: @unchecked Sendable {
 }
 
 @MainActor
-final class TemporarilyHiddenCrosioWindows {
+final class TemporarilyHiddenAppWindows {
     private var windowsToRestore: [NSWindow]
 
     init() {
@@ -352,7 +352,7 @@ final class TemporarilyHiddenCrosioWindows {
         }
     }
 
-    /// Restores only detached screenshot pins while keeping the main Crosio
+    /// Restores only detached screenshot pins while keeping the main OnePaw
     /// window hidden. Region recording uses this after selection so the user
     /// can keep referencing pins without exposing them to the capture filter.
     func restorePinnedScreenshotWindows() {

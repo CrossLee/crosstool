@@ -10,7 +10,7 @@ import OSLog
 ///
 /// Only a 512 x 512 native-pixel tile around the pointer is streamed. Pointer
 /// movement inside that tile reads the latest BGRA frame directly; the stream
-/// is moved only when the pointer approaches the tile edge. Crosio itself is
+/// is moved only when the pointer approaches the tile edge. OnePaw itself is
 /// excluded by the display filter, so the loupe never samples its own pixels.
 @MainActor
 final class RealtimeScreenColorSampler: NSObject, ScreenColorSampling {
@@ -91,7 +91,7 @@ private final class RealtimeColorSamplingSession {
     }
 
     private func installWindows() {
-        // The mouse-down that starts sampling from Crosio can still be in
+        // The mouse-down that starts sampling from OnePaw can still be in
         // flight when the transparent overlay is ordered front. Ignore that
         // initiating click so opening the picker never confirms a colour.
         confirmationReadyAt = ProcessInfo.processInfo.systemUptime + 0.35
