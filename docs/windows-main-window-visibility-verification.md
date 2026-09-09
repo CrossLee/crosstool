@@ -46,6 +46,18 @@ MSIX 安装验收还会在首次启动通过后隐藏该精确主窗口，在原
 
 本机已通过 Windows 工作流与窗口验收脚本的静态合同测试 `19/19`，并通过 YAML 解析和 `git diff --check`。本机没有 Windows PowerShell、Windows UI Automation、WinUI 或 DWM 环境，因此这些结果只证明脚本合同和配置结构，不等于 Windows 动态验收。新的 Windows CI 动态结果必须以包含本修复的对应 Actions 记录为准；本文不把未列出的运行视为已通过。
 
+## 本次 Actions 动态结果
+
+提交 [`486930a`](https://github.com/CrossLee/onepaw/commit/486930aa86d15c512764a67b6b8ae6abb369211a) 的 [Windows Actions 运行 `34347732545`](https://github.com/CrossLee/onepaw/actions/runs/34347732545) 已完成且结论为成功：
+
+- x64 托管 Windows 环境完成 WinUI/MSVC 编译及 9 个 .NET 测试项目，共 `312/312` 通过；工作流静态合同另有 `19/19` 通过；
+- x64 unpackaged 主窗口实际启动检查记录 `Visible=True`、`Minimized=False`、`Cloaked=False`、`DisplayAffinity=0`、`OnMonitor=True`，并通过“首页”UI Automation 检查；
+- 同一提交构建了 x64/ARM64 MSIXBundle 和中文 Setup，生成的 `0.1.24.0` 仅是该次 Actions 的 unsigned-test 测试版本；
+- [Windows 11 ARM64 安装任务](https://github.com/CrossLee/onepaw/actions/runs/34347732545/job/102455274873) 完成首次和同版本重复图形安装。隐藏已验证主窗口后再次激活同一 AUMID，原驻留进程恢复合格主窗口，日志再次记录 `DisplayAffinity=0` 和 `Problems=none`；
+- `publish-preview` job 为 skipped，没有创建或更新 GitHub Release。
+
+这些动态结果证明对应托管 runner 上的构建、安装和窗口状态合同，不扩大下节列出的真机边界。
+
 ## 尚未证明
 
 以下项目仍须在与用户场景一致的设备上单独验收，不能由托管 CI 或 API 状态替代：
