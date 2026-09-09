@@ -29,6 +29,7 @@ Var EngineOutput
 Var FailureMessage
 
 !define MUI_ABORTWARNING
+!define MUI_ICON "${CROSIO_ICON}"
 !define MUI_CUSTOMFUNCTION_ABORT UserAbort
 !define MUI_WELCOMEPAGE_TITLE "欢迎安装 Crosio"
 !define MUI_WELCOMEPAGE_TEXT "即将安装 Crosio ${CROSIO_VERSION}${CROSIO_FLAVOR_TEXT}。$\r$\n$\r$\n安装器会自动选择 x64 或 ARM64 版本，无需输入命令。更新会保留已有设置。$\r$\n$\r$\n安装前请退出正在运行的 Crosio，然后点击“安装”。"

@@ -15,6 +15,7 @@
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\OnePaw.ico</ApplicationIcon>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
@@ -89,13 +90,14 @@
       SkipGetTargetFrameworkProperties="true" />
   </ItemGroup>
 
-  <ItemGroup Condition="'$(WindowsPackageType)' == 'MSIX'">
-    <Content Include="../../../Resources/Brand/CrosioIcon.png">
-      <Link>Assets\CrosioIcon.png</Link>
-      <TargetPath>Assets\CrosioIcon.png</TargetPath>
+  <ItemGroup>
+    <Content Include="Assets\*.png;Assets\OnePaw.ico">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(WindowsPackageType)' == 'MSIX'">
     <Content Include="$(CrosioShellExtensionOutput)" Condition="'$(OS)' == 'Windows_NT'">
       <Link>ShellExtensions\Crosio.Windows.ShellExtension.dll</Link>
       <TargetPath>ShellExtensions\Crosio.Windows.ShellExtension.dll</TargetPath>

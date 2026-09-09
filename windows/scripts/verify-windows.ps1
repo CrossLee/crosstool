@@ -136,6 +136,8 @@ Invoke-VerificationStage -Name "WinUI app build, publish, payload, and startup" 
         "-p:EnableMsixTooling=true"
     )
 
+    & (Join-Path $PSScriptRoot "Test-IconAssets.ps1") -PackageDirectory $publishDirectory
+
     $requiredPublishFiles = @(
         "Crosio.exe",
         "onnxruntime.dll",

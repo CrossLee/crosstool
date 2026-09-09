@@ -58,6 +58,7 @@ public sealed partial class MainWindow : Window
     {
         _services = services ?? throw new ArgumentNullException(nameof(services));
         InitializeComponent();
+        AppWindow.SetIcon(ApplicationBranding.IconPath);
         HotkeyList.ItemsSource = _hotkeyRows;
         Title = "Crosio";
         GreetingText.Text = TimeOfDayGreeting.ForHour(DateTime.Now.Hour);

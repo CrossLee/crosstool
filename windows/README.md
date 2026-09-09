@@ -74,7 +74,9 @@ windows/
 
 Explorer 扩展采用系统 COM surrogate：`com:SurrogateServer` 直接注册 DLL 的 `com:Class`，不声明进程外 `Executable`/`Arguments`；可选 `AppId` 目前也不需要。清单、原生 CLSID、菜单 Verb 和包内 DLL 路径由 `Test-PackageLayout.ps1` 交叉检查。
 
-图标暂时复用仓库现有的 `Resources/Brand/CrosioIcon.png`，打包时映射到 `Assets\CrosioIcon.png`，没有重新绘制品牌图。这里有一个明确的发布门槛：现有文件是 1024×1024，而清单同时把它用作 Windows 的 44×44 与 150×150 基准资产（Store Logo 也要求独立的 50×50 基准资产）。仓库没有用代码缩放或生成替代图片；Windows CI 必须执行真实打包/安装验证，但即使测试包可以生成，也不能把它当成图标资源已经符合发布规范。正式发布前需要由品牌源文件导出独立的 Windows 尺寸与 scale/targetsize 资产。
+产品图标采用已确认的“一爪 OnePaw”猫咪伸爪拟物图。`Resources/Brand/OnePaw-AppIcon.png` 是未经修改的 1254×1254 生图原稿；`src/Crosio.Windows.App/Assets` 保存 Windows 所需的尺寸/格式导出，覆盖 MSIX 开始菜单与文件关联、应用 EXE、主窗口、通知区域及中文安装器。包身份、安装与数据路径继续兼容 Crosio，本轮不做名称迁移。
+
+这些导出只通过系统工具进行等比尺寸转换与 ICO 容器封装，不重绘、抠图、换色或改变构图。开发者可在 macOS 执行 `node windows/scripts/export-approved-icons.mjs` 重现；Windows 构建直接使用已提交的资产，无需安装图片工具。`IconAssets.json` 记录原稿和每份导出的 SHA-256，`Test-PackageLayout.ps1` 严格检查图标来源、尺寸、ICO 目录及引用；真实包内图标继续在解包时核验。尺寸依据 [Microsoft Windows 图标说明](https://learn.microsoft.com/en-us/windows/apps/design/iconography/app-icon-construction)。
 
 ## 验证与开发构建
 

@@ -16,7 +16,7 @@ $platformFragmentPath = Join-Path $windowsRoot "src/Crosio.Windows.Platform/Pack
 $mediaProjectPath = Join-Path $windowsRoot "src/Crosio.Windows.Media/Crosio.Windows.Media.csproj"
 $translationProjectPath = Join-Path $windowsRoot "src/Crosio.Windows.Translation/Crosio.Windows.Translation.csproj"
 $exportsPath = Join-Path $windowsRoot "shell/Crosio.Windows.ShellExtension/exports.def"
-$iconPath = Join-Path $repositoryRoot "Resources/Brand/CrosioIcon.png"
+$iconPath = Join-Path $repositoryRoot "Resources/Brand/OnePaw-AppIcon.png"
 $thirdPartyNoticesPath = Join-Path $windowsRoot "THIRD_PARTY_NOTICES.md"
 $buildMsixPath = Join-Path $windowsRoot "scripts/build-msix.ps1"
 $buildBundlePath = Join-Path $windowsRoot "scripts/build-msixbundle.ps1"
@@ -185,7 +185,8 @@ Assert-True ($appProject -match "<Platforms>x64;ARM64</Platforms>") "The app mus
 Assert-True ($appProject -match "<SelfContained Condition=.*WindowsPackageType.*MSIX.*>true</SelfContained>") "MSIX builds must include the .NET runtime."
 Assert-True ($appProject -match "Crosio\.Windows\.ShellExtension\.vcxproj") "The app does not build the native Explorer command."
 Assert-True ($appProject -match "ShellExtensions\\Crosio\.Windows\.ShellExtension\.dll") "The native Explorer command is not included in the package payload."
-Assert-True ($appProject -match "Resources/Brand/CrosioIcon\.png") "The existing Crosio brand icon is not included."
+Assert-True ($appProject.Contains('<ApplicationIcon>Assets\OnePaw.ico</ApplicationIcon>')) "The app EXE must embed the approved OnePaw icon."
+Assert-True ($appProject.Contains('<Content Include="Assets\*.png;Assets\OnePaw.ico">')) "The approved icon exports must be included in packaged and unpackaged builds."
 Assert-True ($appProject -match "\.\./\.\./THIRD_PARTY_NOTICES\.md") "The third-party notices file is not included in app outputs."
 Assert-True ($appProject -match "Microsoft\.WindowsAppSDK-LICENSE\.txt") "The Windows App SDK license is not included in app outputs."
 Assert-True ($appProject -match '\$\(CrosioVCRuntimeDirectory\)\\\*\.dll') "The matching app-local Visual C++ runtime is not included in app outputs."
@@ -278,19 +279,20 @@ $shellProjectText = Get-Content -LiteralPath $shellProjectPath -Raw
 Assert-True ($shellProjectText -like '*artifacts\shell\$(Platform)\$(Configuration)\*') "The native Explorer command output is not routed to the package staging path."
 Assert-True ($shellProjectText -match "/utf-8") "The native Explorer command must compile its Chinese title as UTF-8."
 
-$pngHeader = [System.IO.File]::ReadAllBytes($iconPath)
-Assert-True ($pngHeader.Length -gt 24) "The Crosio icon is empty."
-$pngSignature = [byte[]](137, 80, 78, 71, 13, 10, 26, 10)
-for ($index = 0; $index -lt $pngSignature.Length; $index++) {
-    Assert-True ($pngHeader[$index] -eq $pngSignature[$index]) "The Crosio icon is not a PNG file."
-}
-
-$iconWidth = [System.Net.IPAddress]::NetworkToHostOrder([BitConverter]::ToInt32($pngHeader, 16))
-$iconHeight = [System.Net.IPAddress]::NetworkToHostOrder([BitConverter]::ToInt32($pngHeader, 20))
-Assert-True (($iconWidth -gt 0) -and ($iconHeight -gt 0)) "The Crosio icon has invalid PNG dimensions."
-Write-Warning ((
-    "Assets\CrosioIcon.png is {0}x{1}, while the manifest uses it for the 44x44 and 150x150 MSIX base assets. " +
-    "This static check does not certify those dimensions; MakePri/MakeAppx in Windows CI is the packaging authority."
-) -f $iconWidth, $iconHeight)
+& (Join-Path $PSScriptRoot "Test-IconAssets.ps1")
+$visualElements = $manifest.SelectSingleNode("//uap:VisualElements", $namespaces)
+Assert-True ($visualElements.GetAttribute("Square44x44Logo") -eq 'Assets\Square44x44Logo.png') "The app-list icon must use its correctly sized asset family."
+Assert-True ($visualElements.GetAttribute("Square150x150Logo") -eq 'Assets\Square150x150Logo.png') "The tile icon must use its correctly sized asset family."
+Assert-True ($manifest.Package.Properties.Logo -eq 'Assets\StoreLogo.png') "The package logo must use its separate 50px asset family."
+$featureServices = Get-Content -LiteralPath (Join-Path $windowsRoot "src/Crosio.Windows.App/FeatureServices.cs") -Raw
+Assert-True ($featureServices.Contains('_trayImage.Value.Handle') -and -not $featureServices.Contains('SystemIcons.Application')) "The tray must use the owned OnePaw icon, not the generic Windows icon."
+$mainWindow = Get-Content -LiteralPath (Join-Path $windowsRoot "src/Crosio.Windows.App/MainWindow.xaml.cs") -Raw
+Assert-True ($mainWindow.Contains('AppWindow.SetIcon(ApplicationBranding.IconPath)')) "The main window must use the same OnePaw icon."
+$editorWindow = Get-Content -LiteralPath (Join-Path $windowsRoot "src/Crosio.Windows.Capture/Editor/ScreenshotEditorWindow.cs") -Raw
+$pickerWindow = Get-Content -LiteralPath (Join-Path $windowsRoot "src/Crosio.Windows.Capture/Selection/WindowsMultiWindowCaptureTargetPicker.cs") -Raw
+Assert-True ($editorWindow.Contains('WindowBranding.ApplyIcon(this)') -and $pickerWindow.Contains('WindowBranding.ApplyIcon(this)')) "Capture tool windows must not retain generic Windows icons."
+$setupScript = Get-Content -LiteralPath (Join-Path $windowsRoot "scripts/build-setup.ps1") -Raw
+$setupDefinition = Get-Content -LiteralPath (Join-Path $windowsRoot "installer/CrosioSetup.nsi") -Raw
+Assert-True ($setupScript.Contains('Assets/OnePaw.ico') -and $setupDefinition.Contains('!define MUI_ICON "${CROSIO_ICON}"')) "The Setup.exe icon must match the application icon."
 
 Write-Host "Crosio package manifest, Explorer command registration, and payload layout are consistent."

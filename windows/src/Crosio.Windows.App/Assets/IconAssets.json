@@ -1,0 +1,362 @@
+{
+  "artwork": "OnePaw-AppIcon-v2-cat — user-approved reaching kitten, 2026-09-09",
+  "source": "Resources/Brand/OnePaw-AppIcon.png",
+  "sourceSha256": "632a1d63d4b47f0062dc8893853f2d832f1da27948c6d27cb44b37e26dd775dd",
+  "conversion": "macOS sips size/format export only; no artwork edits; ICO entries repacked without modifying bitmap payloads",
+  "assets": [
+    {
+      "name": "Square44x44Logo.scale-100.png",
+      "pixels": 44,
+      "format": "png",
+      "sha256": "287d28b4c6f0015d9487e1d9c786323c848eda6aab0a9ffd2232416a587c4248"
+    },
+    {
+      "name": "Square44x44Logo.scale-125.png",
+      "pixels": 55,
+      "format": "png",
+      "sha256": "507110bba21e1a9c65d1a8c7c04f1de19009a6ed9217b292bea199d672bbf755"
+    },
+    {
+      "name": "Square44x44Logo.scale-150.png",
+      "pixels": 66,
+      "format": "png",
+      "sha256": "7bb05366c6109715819178fef806f2da002ade46be651629ae63329dfa2cd8cb"
+    },
+    {
+      "name": "Square44x44Logo.scale-200.png",
+      "pixels": 88,
+      "format": "png",
+      "sha256": "3b4538b4346f887e0a8b64d5568e1f48b11548ce7de9595d8d3c6c496c9695f0"
+    },
+    {
+      "name": "Square44x44Logo.scale-400.png",
+      "pixels": 176,
+      "format": "png",
+      "sha256": "09afb079a85cf8ad63b1771d1b7ac792662396de65636665e8142587f1e961f4"
+    },
+    {
+      "name": "Square150x150Logo.scale-100.png",
+      "pixels": 150,
+      "format": "png",
+      "sha256": "a4cfa5a07c3a26a05dc80a8783f51e14def0a050fb11573146ae7e61444cf0e5"
+    },
+    {
+      "name": "Square150x150Logo.scale-125.png",
+      "pixels": 188,
+      "format": "png",
+      "sha256": "a11c668844123b3a6e72cb8b92a84ac77ef21ccf6ac6f47689e616747b32777d"
+    },
+    {
+      "name": "Square150x150Logo.scale-150.png",
+      "pixels": 225,
+      "format": "png",
+      "sha256": "b3f0875d74a261c7ac7ee2e8bcc02061f90469588a118713e8b2f3311ce24405"
+    },
+    {
+      "name": "Square150x150Logo.scale-200.png",
+      "pixels": 300,
+      "format": "png",
+      "sha256": "f35fc5561305f7dc89afac2d6a8cf73ceb8b6d712381af33ef37290af80a0b1f"
+    },
+    {
+      "name": "Square150x150Logo.scale-400.png",
+      "pixels": 600,
+      "format": "png",
+      "sha256": "3da9d47981749b236a38dcbd99e3aa9d35ae8b13018cb64d9952543a224ce7e0"
+    },
+    {
+      "name": "StoreLogo.scale-100.png",
+      "pixels": 50,
+      "format": "png",
+      "sha256": "88b3de303226757d471efefcacd02f37c9568cacc00f3ee9bae5da7a43e99c6e"
+    },
+    {
+      "name": "StoreLogo.scale-125.png",
+      "pixels": 63,
+      "format": "png",
+      "sha256": "9c10fa1f5c8d8c47a4e18fe71b358760f58c46a690ba8153fc1bb4e12c293c38"
+    },
+    {
+      "name": "StoreLogo.scale-150.png",
+      "pixels": 75,
+      "format": "png",
+      "sha256": "e1846018be08b0126632cbfa267994fd1a2239ecb48de58c5211017798690339"
+    },
+    {
+      "name": "StoreLogo.scale-200.png",
+      "pixels": 100,
+      "format": "png",
+      "sha256": "b9d837c2167d7b7935319ef02984258d6adfff9832c75611cd2ca8e42a6b42c4"
+    },
+    {
+      "name": "StoreLogo.scale-400.png",
+      "pixels": 200,
+      "format": "png",
+      "sha256": "84363940a76f78f69df9e4199a5767c62d8c5c032fa4ccf63d335fdd5c2dbffb"
+    },
+    {
+      "name": "Square44x44Logo.targetsize-16.png",
+      "pixels": 16,
+      "format": "png",
+      "sha256": "ff86b20a4eb92d506a175c35e82892a3bb641c046b23ec6b7940d1291cbe6b83"
+    },
+    {
+      "name": "Square44x44Logo.targetsize-16_altform-unplated.png",
+      "pixels": 16,
+      "format": "png",
+      "sha256": "ff86b20a4eb92d506a175c35e82892a3bb641c046b23ec6b7940d1291cbe6b83"
+    },
+    {
+      "name": "Square44x44Logo.targetsize-16_altform-lightunplated.png",
+      "pixels": 16,
+      "format": "png",
+      "sha256": "ff86b20a4eb92d506a175c35e82892a3bb641c046b23ec6b7940d1291cbe6b83"
+    },
+    {
+      "name": "Square44x44Logo.targetsize-20.png",
+      "pixels": 20,
+      "format": "png",
+      "sha256": "87983bed8ba75c8b3cf6bb0ef3800dcd3e1df717d419e07e7ab8a123335db498"
+    },
+    {
+      "name": "Square44x44Logo.targetsize-20_altform-unplated.png",
+      "pixels": 20,
+      "format": "png",
+      "sha256": "87983bed8ba75c8b3cf6bb0ef3800dcd3e1df717d419e07e7ab8a123335db498"
+    },
+    {
+      "name": "Square44x44Logo.targetsize-20_altform-lightunplated.png",
+      "pixels": 20,
+      "format": "png",
+      "sha256": "87983bed8ba75c8b3cf6bb0ef3800dcd3e1df717d419e07e7ab8a123335db498"
+    },
+    {
+      "name": "Square44x44Logo.targetsize-24.png",
+      "pixels": 24,
+      "format": "png",
+      "sha256": "2b822795226449c08066712d11f9a5896764986d3265d8265d23421792f196ed"
+    },
+    {
+      "name": "Square44x44Logo.targetsize-24_altform-unplated.png",
+      "pixels": 24,
+      "format": "png",
+      "sha256": "2b822795226449c08066712d11f9a5896764986d3265d8265d23421792f196ed"
+    },
+    {
+      "name": "Square44x44Logo.targetsize-24_altform-lightunplated.png",
+      "pixels": 24,
+      "format": "png",
+      "sha256": "2b822795226449c08066712d11f9a5896764986d3265d8265d23421792f196ed"
+    },
+    {
+      "name": "Square44x44Logo.targetsize-30.png",
+      "pixels": 30,
+      "format": "png",
+      "sha256": "2fb168e0fd3c9a0363bbcf49a613a1400c21ef5a38ee8b5ba54894cb831b1502"
+    },
+    {
+      "name": "Square44x44Logo.targetsize-30_altform-unplated.png",
+      "pixels": 30,
+      "format": "png",
+      "sha256": "2fb168e0fd3c9a0363bbcf49a613a1400c21ef5a38ee8b5ba54894cb831b1502"
+    },
+    {
+      "name": "Square44x44Logo.targetsize-30_altform-lightunplated.png",
+      "pixels": 30,
+      "format": "png",
+      "sha256": "2fb168e0fd3c9a0363bbcf49a613a1400c21ef5a38ee8b5ba54894cb831b1502"
+    },
+    {
+      "name": "Square44x44Logo.targetsize-32.png",
+      "pixels": 32,
+      "format": "png",
+      "sha256": "d90e133db691c775d8ad83e80b21907c47ca6e357a7901a23e68c76aaf5763cb"
+    },
+    {
+      "name": "Square44x44Logo.targetsize-32_altform-unplated.png",
+      "pixels": 32,
+      "format": "png",
+      "sha256": "d90e133db691c775d8ad83e80b21907c47ca6e357a7901a23e68c76aaf5763cb"
+    },
+    {
+      "name": "Square44x44Logo.targetsize-32_altform-lightunplated.png",
+      "pixels": 32,
+      "format": "png",
+      "sha256": "d90e133db691c775d8ad83e80b21907c47ca6e357a7901a23e68c76aaf5763cb"
+    },
+    {
+      "name": "Square44x44Logo.targetsize-36.png",
+      "pixels": 36,
+      "format": "png",
+      "sha256": "b430d73582e23233154b3438922ea94ef488a878753f907d02c5f6f386af0839"
+    },
+    {
+      "name": "Square44x44Logo.targetsize-36_altform-unplated.png",
+      "pixels": 36,
+      "format": "png",
+      "sha256": "b430d73582e23233154b3438922ea94ef488a878753f907d02c5f6f386af0839"
+    },
+    {
+      "name": "Square44x44Logo.targetsize-36_altform-lightunplated.png",
+      "pixels": 36,
+      "format": "png",
+      "sha256": "b430d73582e23233154b3438922ea94ef488a878753f907d02c5f6f386af0839"
+    },
+    {
+      "name": "Square44x44Logo.targetsize-40.png",
+      "pixels": 40,
+      "format": "png",
+      "sha256": "906aeb6cccaf537be5b18b1f7cc38853d7bd86b13f0db9c5640f4c87435a7029"
+    },
+    {
+      "name": "Square44x44Logo.targetsize-40_altform-unplated.png",
+      "pixels": 40,
+      "format": "png",
+      "sha256": "906aeb6cccaf537be5b18b1f7cc38853d7bd86b13f0db9c5640f4c87435a7029"
+    },
+    {
+      "name": "Square44x44Logo.targetsize-40_altform-lightunplated.png",
+      "pixels": 40,
+      "format": "png",
+      "sha256": "906aeb6cccaf537be5b18b1f7cc38853d7bd86b13f0db9c5640f4c87435a7029"
+    },
+    {
+      "name": "Square44x44Logo.targetsize-48.png",
+      "pixels": 48,
+      "format": "png",
+      "sha256": "039d03a4970df0e7cc772f4550cefcc39ec15749fa637c9241115325dc9e2ee6"
+    },
+    {
+      "name": "Square44x44Logo.targetsize-48_altform-unplated.png",
+      "pixels": 48,
+      "format": "png",
+      "sha256": "039d03a4970df0e7cc772f4550cefcc39ec15749fa637c9241115325dc9e2ee6"
+    },
+    {
+      "name": "Square44x44Logo.targetsize-48_altform-lightunplated.png",
+      "pixels": 48,
+      "format": "png",
+      "sha256": "039d03a4970df0e7cc772f4550cefcc39ec15749fa637c9241115325dc9e2ee6"
+    },
+    {
+      "name": "Square44x44Logo.targetsize-60.png",
+      "pixels": 60,
+      "format": "png",
+      "sha256": "8a2cc37c8596ded8ad677c6ec1d3402cc02c6b4c48276ca18eb9ec7676174821"
+    },
+    {
+      "name": "Square44x44Logo.targetsize-60_altform-unplated.png",
+      "pixels": 60,
+      "format": "png",
+      "sha256": "8a2cc37c8596ded8ad677c6ec1d3402cc02c6b4c48276ca18eb9ec7676174821"
+    },
+    {
+      "name": "Square44x44Logo.targetsize-60_altform-lightunplated.png",
+      "pixels": 60,
+      "format": "png",
+      "sha256": "8a2cc37c8596ded8ad677c6ec1d3402cc02c6b4c48276ca18eb9ec7676174821"
+    },
+    {
+      "name": "Square44x44Logo.targetsize-64.png",
+      "pixels": 64,
+      "format": "png",
+      "sha256": "c7f6bcd7da8fb36240f5fee5c9c82b5c5ce1cb3e0348d989fccf8ab5898812fe"
+    },
+    {
+      "name": "Square44x44Logo.targetsize-64_altform-unplated.png",
+      "pixels": 64,
+      "format": "png",
+      "sha256": "c7f6bcd7da8fb36240f5fee5c9c82b5c5ce1cb3e0348d989fccf8ab5898812fe"
+    },
+    {
+      "name": "Square44x44Logo.targetsize-64_altform-lightunplated.png",
+      "pixels": 64,
+      "format": "png",
+      "sha256": "c7f6bcd7da8fb36240f5fee5c9c82b5c5ce1cb3e0348d989fccf8ab5898812fe"
+    },
+    {
+      "name": "Square44x44Logo.targetsize-72.png",
+      "pixels": 72,
+      "format": "png",
+      "sha256": "4646876041158736e24fd030b7112470edc6d6565899c841a519440e48d42f6d"
+    },
+    {
+      "name": "Square44x44Logo.targetsize-72_altform-unplated.png",
+      "pixels": 72,
+      "format": "png",
+      "sha256": "4646876041158736e24fd030b7112470edc6d6565899c841a519440e48d42f6d"
+    },
+    {
+      "name": "Square44x44Logo.targetsize-72_altform-lightunplated.png",
+      "pixels": 72,
+      "format": "png",
+      "sha256": "4646876041158736e24fd030b7112470edc6d6565899c841a519440e48d42f6d"
+    },
+    {
+      "name": "Square44x44Logo.targetsize-80.png",
+      "pixels": 80,
+      "format": "png",
+      "sha256": "a63c35ab544368376fca50c447a72c5d69e311c01dd5ba8728d80389f1a304b4"
+    },
+    {
+      "name": "Square44x44Logo.targetsize-80_altform-unplated.png",
+      "pixels": 80,
+      "format": "png",
+      "sha256": "a63c35ab544368376fca50c447a72c5d69e311c01dd5ba8728d80389f1a304b4"
+    },
+    {
+      "name": "Square44x44Logo.targetsize-80_altform-lightunplated.png",
+      "pixels": 80,
+      "format": "png",
+      "sha256": "a63c35ab544368376fca50c447a72c5d69e311c01dd5ba8728d80389f1a304b4"
+    },
+    {
+      "name": "Square44x44Logo.targetsize-96.png",
+      "pixels": 96,
+      "format": "png",
+      "sha256": "5c607c507497539cac580d01833ba56be4e9aa9773fa617fe869d64355e85693"
+    },
+    {
+      "name": "Square44x44Logo.targetsize-96_altform-unplated.png",
+      "pixels": 96,
+      "format": "png",
+      "sha256": "5c607c507497539cac580d01833ba56be4e9aa9773fa617fe869d64355e85693"
+    },
+    {
+      "name": "Square44x44Logo.targetsize-96_altform-lightunplated.png",
+      "pixels": 96,
+      "format": "png",
+      "sha256": "5c607c507497539cac580d01833ba56be4e9aa9773fa617fe869d64355e85693"
+    },
+    {
+      "name": "Square44x44Logo.targetsize-256.png",
+      "pixels": 256,
+      "format": "png",
+      "sha256": "9e4e7b85d1a841a3d62c1f8b75a90e00c5f40b1ea4a977cbfe0c22f7c6ff6e8b"
+    },
+    {
+      "name": "Square44x44Logo.targetsize-256_altform-unplated.png",
+      "pixels": 256,
+      "format": "png",
+      "sha256": "9e4e7b85d1a841a3d62c1f8b75a90e00c5f40b1ea4a977cbfe0c22f7c6ff6e8b"
+    },
+    {
+      "name": "Square44x44Logo.targetsize-256_altform-lightunplated.png",
+      "pixels": 256,
+      "format": "png",
+      "sha256": "9e4e7b85d1a841a3d62c1f8b75a90e00c5f40b1ea4a977cbfe0c22f7c6ff6e8b"
+    },
+    {
+      "name": "OnePaw.ico",
+      "pixels": [
+        16,
+        24,
+        32,
+        48,
+        256
+      ],
+      "format": "ico",
+      "sha256": "68e8bb3430d3984aff00f1ad89f3198f039c1877e19a3086268e67e7d88d699c"
+    }
+  ]
+}

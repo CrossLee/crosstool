@@ -230,6 +230,7 @@ try {
         CROSIO_PAYLOAD_METADATA = $payloadPath
         CROSIO_ENGINE = $enginePath
         CROSIO_NSIS_LICENSE = (Join-Path $installerSource "LICENSE.NSIS.txt")
+        CROSIO_ICON = (Join-Path $windowsRoot "src/Crosio.Windows.App/Assets/OnePaw.ico")
     }
     $configPath = Join-Path $stagingDirectory "setup-config.nsh"
     $configLines = foreach ($key in $defines.Keys) { '!define ' + $key + ' "' + (ConvertTo-NsisLiteral $defines[$key]) + '"' }

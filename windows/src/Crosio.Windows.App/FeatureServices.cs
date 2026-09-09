@@ -38,17 +38,21 @@ internal sealed class FeatureServices : IAsyncDisposable
     private readonly Lazy<WindowsGlobalHotkeyHost> _globalHotkeys = new(
         () => new WindowsGlobalHotkeyHost(),
         LazyThreadSafetyMode.None);
-    private readonly Lazy<TrayIconHost> _trayIcon = new(
-        () => new TrayIconHost(
-            System.Drawing.SystemIcons.Application.Handle,
-            new Guid("3F62CF92-8430-48F1-90C8-C25E93E8070B")),
+    private readonly Lazy<System.Drawing.Icon> _trayImage = new(
+        () => new System.Drawing.Icon(ApplicationBranding.IconPath, 32, 32),
         LazyThreadSafetyMode.None);
+    private readonly Lazy<TrayIconHost> _trayIcon;
     private readonly SharedContentStore _sharedContent;
     private readonly Lazy<LocalSharingServer> _sharingServer;
     private readonly MarianOnnxTranslationEngine _translationEngine;
 
     public FeatureServices()
     {
+        _trayIcon = new Lazy<TrayIconHost>(
+            () => new TrayIconHost(
+                _trayImage.Value.Handle,
+                new Guid("3F62CF92-8430-48F1-90C8-C25E93E8070B")),
+            LazyThreadSafetyMode.None);
         ImageCompression = new ImageCompressionService();
         ImageFileActivation = new ImageFileActivationHandler(
             ImageCompression,
@@ -224,6 +228,11 @@ internal sealed class FeatureServices : IAsyncDisposable
         if (_trayIcon.IsValueCreated)
         {
             _trayIcon.Value.Dispose();
+        }
+
+        if (_trayImage.IsValueCreated)
+        {
+            _trayImage.Value.Dispose();
         }
 
         if (_pinnedScreenshots.IsValueCreated)

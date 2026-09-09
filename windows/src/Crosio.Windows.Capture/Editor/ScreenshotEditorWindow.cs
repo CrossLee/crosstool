@@ -65,6 +65,7 @@ internal sealed class ScreenshotEditorWindow : Form
         MinimizeBox = true;
         MinimumSize = new Size(760, 480);
         Name = "CrosioScreenshotEditor";
+        WindowBranding.ApplyIcon(this);
         ShowIcon = false;
         StartPosition = FormStartPosition.Manual;
         Text = "截图 — Crosio";

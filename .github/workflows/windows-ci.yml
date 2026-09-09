@@ -5,11 +5,13 @@ on:
     paths:
       - "windows/**"
       - "Resources/Brand/CrosioIcon.png"
+      - "Resources/Brand/OnePaw-AppIcon.png"
       - ".github/workflows/windows-ci.yml"
   pull_request:
     paths:
       - "windows/**"
       - "Resources/Brand/CrosioIcon.png"
+      - "Resources/Brand/OnePaw-AppIcon.png"
       - ".github/workflows/windows-ci.yml"
   workflow_dispatch:
 

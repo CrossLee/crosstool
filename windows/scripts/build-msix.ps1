@@ -130,6 +130,7 @@ if (Test-Path -LiteralPath $inspectionDirectory) {
 New-Item -ItemType Directory -Path $inspectionDirectory -Force | Out-Null
 $makeAppx = Resolve-CrosioWindowsSdkTool "makeappx.exe"
 Invoke-CrosioChecked -Command $makeAppx -Arguments @("unpack", "/p", $packagePath, "/d", $inspectionDirectory, "/o")
+& (Join-Path $PSScriptRoot "Test-IconAssets.ps1") -PackageDirectory $inspectionDirectory
 
 $packagedShellDll = Join-Path $inspectionDirectory "ShellExtensions/Crosio.Windows.ShellExtension.dll"
 $requiredPackageFiles = @(
