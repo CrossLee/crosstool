@@ -68,8 +68,8 @@ internal sealed class ScreenshotEditorWindow : Form
         WindowBranding.ApplyIcon(this);
         ShowIcon = false;
         StartPosition = FormStartPosition.Manual;
-        Text = "截图 — Crosio";
-        AccessibleName = "Crosio 截图编辑器";
+        Text = "截图 — 一爪";
+        AccessibleName = "一爪截图编辑器";
         AccessibleDescription = "标注或复制截图，按 S 贴到屏幕，按 Esc 关闭";
 
         _toolPicker = new ComboBox
@@ -597,7 +597,7 @@ internal sealed class ScreenshotEditorWindow : Form
         {
             AddExtension = true,
             DefaultExt = "png",
-            FileName = $"Crosio-{DateTime.Now:yyyyMMdd-HHmmss}.png",
+            FileName = $"一爪-{DateTime.Now:yyyyMMdd-HHmmss}.png",
             Filter = "PNG 图片 (*.png)|*.png",
             OverwritePrompt = true,
             Title = "另存截图为 PNG",

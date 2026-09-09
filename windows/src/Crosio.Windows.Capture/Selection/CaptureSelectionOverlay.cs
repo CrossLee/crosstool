@@ -38,8 +38,8 @@ internal sealed class CaptureSelectionOverlay : Form
         ShowInTaskbar = false;
         StartPosition = FormStartPosition.Manual;
         Text = mode == CaptureSelectionOverlayMode.Region
-            ? "选择截图区域 — Crosio"
-            : "选择截图目标 — Crosio";
+            ? "选择截图区域 — 一爪"
+            : "选择截图目标 — 一爪";
         TopMost = true;
         AccessibleName = Text;
         AccessibleDescription = mode == CaptureSelectionOverlayMode.Region

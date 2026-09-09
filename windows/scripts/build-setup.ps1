@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [Parameter(Mandatory)]
     [string]$Version,
@@ -26,7 +26,7 @@ $releaseDirectory = (Resolve-Path -LiteralPath $PackageDirectory).Path
 $installerSource = Join-Path $windowsRoot "installer"
 $buildInfoPath = Join-Path $releaseDirectory "build-info.json"
 $checksumsPath = Join-Path $releaseDirectory "SHA256SUMS.txt"
-$buildInfo = Get-Content -LiteralPath $buildInfoPath -Raw | ConvertFrom-Json
+$buildInfo = Get-Content -Encoding UTF8 -LiteralPath $buildInfoPath -Raw | ConvertFrom-Json
 if ($buildInfo.product -ne "Crosio" -or $buildInfo.version -ne $Version -or
     @($buildInfo.architectures).Count -ne 2 -or @($buildInfo.architectures) -notcontains "x64" -or
     @($buildInfo.architectures) -notcontains "ARM64" -or $buildInfo.signed -isnot [bool]) {
@@ -36,7 +36,7 @@ $flavor = if ($buildInfo.signed) { "signed" } else { "unsigned-test" }
 if ($buildInfo.artifactKind -ne $flavor -or (-not $buildInfo.signed -and -not $AllowUnsignedTestPackage)) {
     throw "Unsigned preview input requires explicit -AllowUnsignedTestPackage; signed metadata must match the bundle."
 }
-$bundlePath = Join-Path $releaseDirectory "Crosio-Windows-$Version-$flavor.msixbundle"
+$bundlePath = Join-Path $releaseDirectory "一爪-Windows-$Version-$flavor.msixbundle"
 $bundles = @(Get-ChildItem -LiteralPath $releaseDirectory -Filter "*.msixbundle" -File)
 if ($bundles.Count -ne 1 -or $bundles[0].FullName -ne $bundlePath) {
     throw "Expected exactly the same-run $Version universal MSIX bundle."
@@ -44,16 +44,16 @@ if ($bundles.Count -ne 1 -or $bundles[0].FullName -ne $bundlePath) {
 
 # Verify the original manifest before adding our seventh checksum. Reject
 # arbitrary paths, duplicates, or stale payloads rather than wrapping them.
-$setupName = "Crosio-Windows-$Version-Setup.exe"
-$checksums = @(Get-Content -LiteralPath $checksumsPath | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+$setupName = "一爪-Windows-$Version-Setup.exe"
+$checksums = @(Get-Content -Encoding UTF8 -LiteralPath $checksumsPath | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
 $originalChecksums = @()
 $seenNames = @{}
 $bundleHash = $null
 $expectedSourceNames = @(
-    "Crosio-Windows-$Version-x64-$flavor.msix",
-    "Crosio-Windows-$Version-arm64-$flavor.msix",
-    "Crosio-Windows-$Version-$flavor.msixbundle",
-    "THIRD_PARTY_NOTICES.md", "Install-Crosio.ps1", "TESTING.md"
+    "一爪-Windows-$Version-x64-$flavor.msix",
+    "一爪-Windows-$Version-arm64-$flavor.msix",
+    "一爪-Windows-$Version-$flavor.msixbundle",
+    "THIRD_PARTY_NOTICES.md", "安装一爪.ps1", "TESTING.md"
 )
 foreach ($line in $checksums) {
     if ($line -notmatch '^([0-9a-fA-F]{64})  ([^\\/]+)$') { throw "Invalid SHA256SUMS line: $line" }

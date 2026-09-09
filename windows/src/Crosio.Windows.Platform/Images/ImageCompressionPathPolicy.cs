@@ -38,7 +38,7 @@ public static class ImageCompressionPathPolicy
         {
             throw new ImageCompressionException(
                 ImageCompressionErrorCode.SourceFormatCannotBePreserved,
-                $"Crosio cannot compress {WindowsPathPolicy.GetExtension(sourcePath)} without changing its format.");
+                $"一爪 cannot compress {WindowsPathPolicy.GetExtension(sourcePath)} without changing its format.");
         }
 
         return format;
@@ -76,7 +76,7 @@ public static class ImageCompressionPathPolicy
 
         // Path.GetExtension preserves the source spelling (for example .JPEG),
         // which is a user-visible part of the preserve-format contract.
-        var suffix = sequence == 1 ? "-crosio" : $"-crosio-{sequence}";
+        var suffix = sequence == 1 ? "-一爪" : $"-一爪-{sequence}";
         return $"{directoryPrefix}{stem}{suffix}{extension}";
     }
 }

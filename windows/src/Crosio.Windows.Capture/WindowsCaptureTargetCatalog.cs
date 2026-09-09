@@ -16,7 +16,7 @@ public sealed class WindowsCaptureTargetCatalog : ICaptureTargetCatalog
     {
         if (!OperatingSystem.IsWindowsVersionAtLeast(10, 0, 19041))
         {
-            throw new PlatformNotSupportedException("Crosio requires Windows 10 version 2004 or newer.");
+            throw new PlatformNotSupportedException("一爪 requires Windows 10 version 2004 or newer.");
         }
 
         return new CaptureTargetSnapshot(

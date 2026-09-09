@@ -241,7 +241,7 @@ public partial class App : Application
         catch (Exception error)
         {
             Debug.WriteLine($"Crosio resident services failed to start: {error}");
-            _mainWindow?.ShowFeatureStatus("后台快捷键或托盘启动失败，请重新打开 Crosio。", isError: true);
+            _mainWindow?.ShowFeatureStatus("后台快捷键或托盘启动失败，请重新打开一爪。", isError: true);
         }
     }
 
@@ -640,7 +640,7 @@ public partial class App : Application
                 {
                     ShowTrayInformation(
                         "正在录屏",
-                        "请使用当前录制类型的快捷键停止，或从 Crosio 主界面停止。");
+                        "请使用当前录制类型的快捷键停止，或从一爪主界面停止。");
                     return;
                 }
 
@@ -814,8 +814,8 @@ public partial class App : Application
                 {
                     _featureServices.TrayIcon.UpdateTooltip(
                         snapshot.Phase == RecordingSessionPhase.Recording
-                            ? "Crosio · 正在录屏"
-                            : "Crosio");
+                            ? "一爪 · 正在录屏"
+                            : "一爪");
                     if (snapshot.Phase == RecordingSessionPhase.Completed && snapshot.OutputPath is { } outputPath)
                     {
                         _featureServices.TrayIcon.ShowInformation(
@@ -897,10 +897,10 @@ public partial class App : Application
 
     private static string SuggestedRecordingName(FeatureId feature) => feature switch
     {
-        FeatureId.ScreenRecording => "Crosio 屏幕录制",
-        FeatureId.RegionRecording => "Crosio 区域录制",
-        FeatureId.WindowRecording => "Crosio 窗口录制",
-        _ => "Crosio 录屏",
+        FeatureId.ScreenRecording => "一爪屏幕录制",
+        FeatureId.RegionRecording => "一爪区域录制",
+        FeatureId.WindowRecording => "一爪窗口录制",
+        _ => "一爪录屏",
     };
 
     private static bool IsRecordingBusy(RecordingSessionPhase phase) => phase is

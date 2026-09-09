@@ -34,7 +34,7 @@ internal sealed class PinnedScreenshotWindow : Form
         ShowIcon = false;
         ShowInTaskbar = false;
         StartPosition = FormStartPosition.Manual;
-        Text = "固定截图 — Crosio";
+        Text = "固定截图 — 一爪";
         TopMost = true;
 
         AccessibleName = "固定的截图";

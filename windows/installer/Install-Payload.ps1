@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [ValidateSet("Install", "Open")]
     [string]$Mode = "Install"
@@ -23,7 +23,7 @@ try {
     if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT -or
         [Environment]::OSVersion.Version.Build -lt 22000 -or
         (Get-CimInstance -ClassName Win32_OperatingSystem).ProductType -ne 1) {
-        throw "Crosio 需要 Windows 11 或更新的桌面版系统。"
+        throw "一爪 需要 Windows 11 或更新的桌面版系统。"
     }
     if (-not [Environment]::Is64BitProcess) {
         throw "无法启动系统原生安装服务，请重新下载完整安装器。"
@@ -32,7 +32,7 @@ try {
     $processor = Get-CimInstance -ClassName Win32_Processor | Select-Object -First 1
     $architecture = switch ([int]$processor.Architecture) { 9 { "AMD64" } 12 { "ARM64" } default { "Unsupported" } }
     if ($architecture -eq "Unsupported") {
-        throw "当前系统架构不受支持。Crosio 支持 x64 和 ARM64。"
+        throw "当前系统架构不受支持。一爪 支持 x64 和 ARM64。"
     }
     $expectedArchitecture = if ($architecture -eq "ARM64") { "Arm64" } else { "X64" }
     # MSIX registers for the executing account. Over-the-shoulder UAC must not
@@ -79,7 +79,7 @@ namespace Crosio.Setup
     if (-not [Crosio.Setup.SessionIdentity]::MatchesDesktopUser()) {
         throw "授权使用了其他管理员账户，无法为当前桌面用户安装。请使用当前登录账户的管理员权限重试，或联系电脑管理员。"
     }
-    $metadata = Get-Content -LiteralPath (Join-Path $PSScriptRoot "payload.json") -Raw | ConvertFrom-Json
+    $metadata = Get-Content -Encoding UTF8 -LiteralPath (Join-Path $PSScriptRoot "payload.json") -Raw | ConvertFrom-Json
     $expectedVersion = [version]$metadata.version
     if ($metadata.product -ne "Crosio" -or $metadata.packageName -ne "Crosio.Windows" -or
         $metadata.sha256 -notmatch '^[a-fA-F0-9]{64}$' -or
@@ -91,10 +91,10 @@ namespace Crosio.Setup
     $installed = @(Get-AppxPackage -Name "Crosio.Windows" -ErrorAction Stop)
     foreach ($existing in $installed) {
         if ($existing.Publisher -ne $metadata.publisher) {
-            throw "已安装的 Crosio 来自不同发布者。为保护现有数据，本次安装已停止。"
+            throw "已安装的 一爪 来自不同发布者。为保护现有数据，本次安装已停止。"
         }
         if ([version]$existing.Version -gt $expectedVersion) {
-            throw "电脑上已有更新版本的 Crosio，不能安装较旧版本。现有版本和设置未被更改。"
+            throw "电脑上已有更新版本的一爪，不能安装较旧版本。现有版本和设置未被更改。"
         }
     }
 
@@ -168,7 +168,7 @@ namespace Crosio.Setup
         Where-Object { $_.Publisher -eq $metadata.publisher -and [version]$_.Version -eq $expectedVersion })
     if ($installed.Count -ne 1 -or $installed[0].Architecture.ToString() -ne $expectedArchitecture -or
         $installed[0].Status.ToString() -ne "Ok") {
-        throw "Windows 未能确认 Crosio 已正确安装。请关闭正在运行的 Crosio 后重试。"
+        throw "Windows 未能确认 一爪 已正确安装。请关闭正在运行的 一爪 后重试。"
     }
     $appManifest = Get-AppxPackageManifest -Package $installed[0].PackageFullName
     $application = $appManifest.Package.Applications.Application |
@@ -178,7 +178,7 @@ namespace Crosio.Setup
     if ($Mode -eq "Open") {
         Start-Process -FilePath (Join-Path $env:WINDIR "explorer.exe") -ArgumentList "shell:AppsFolder\$applicationId" -ErrorAction Stop
     }
-    Write-SetupStatus -Message "Crosio 安装成功。请在开始菜单中搜索 Crosio。" -ApplicationId $applicationId
+    Write-SetupStatus -Message "一爪 安装成功。请在开始菜单中搜索 一爪。" -ApplicationId $applicationId
     exit 0
 }
 catch {

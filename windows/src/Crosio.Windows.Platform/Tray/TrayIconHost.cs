@@ -40,7 +40,7 @@ public sealed class TrayIconHost : IDisposable
     private TrayIconRegistration? _registration;
     private bool _disposed;
 
-    public TrayIconHost(IntPtr iconHandle, Guid iconGuid, string tooltip = "Crosio")
+    public TrayIconHost(IntPtr iconHandle, Guid iconGuid, string tooltip = "一爪")
     {
         if (iconHandle == IntPtr.Zero)
         {
@@ -75,7 +75,7 @@ public sealed class TrayIconHost : IDisposable
             {
                 throw new Win32Exception(
                     Marshal.GetLastWin32Error(),
-                    "Windows could not create the Crosio tray message window.");
+                    "Windows could not create the 一爪 tray message window.");
             }
 
             _registration = new TrayIconRegistration(
@@ -226,7 +226,7 @@ public sealed class TrayIconHost : IDisposable
 
         try
         {
-            if (!AppendMenu(menu, MfString, OpenMenuCommand, "打开 Crosio") ||
+            if (!AppendMenu(menu, MfString, OpenMenuCommand, "打开一爪") ||
                 !AppendMenu(menu, MfSeparator, 0, null) ||
                 !AppendMenu(menu, MfString, ExitMenuCommand, "退出"))
             {
@@ -281,7 +281,7 @@ public sealed class TrayIconHost : IDisposable
                 {
                     throw new Win32Exception(
                         error,
-                        "Windows could not register the Crosio tray message window.");
+                        "Windows could not register the 一爪 tray message window.");
                 }
             }
 

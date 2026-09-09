@@ -57,7 +57,7 @@ public sealed class WindowsLongCaptureController : IDisposable
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
         if (Interlocked.CompareExchange(ref _sessionActive, 1, 0) != 0)
         {
-            throw new InvalidOperationException("A Crosio long-capture session is already running.");
+            throw new InvalidOperationException("A 一爪 long-capture session is already running.");
         }
 
         try
@@ -252,9 +252,9 @@ internal sealed class LongCaptureToolbarWindow : Form
         ShowIcon = false;
         ShowInTaskbar = false;
         StartPosition = FormStartPosition.Manual;
-        Text = "长截图 — Crosio";
+        Text = "长截图 — 一爪";
         TopMost = true;
-        AccessibleName = "Crosio 长截图控制条";
+        AccessibleName = "一爪长截图控制条";
         AccessibleDescription = "显示当前拼接高度，并可向上或向下补采、完成或取消";
 
         _status = new Label

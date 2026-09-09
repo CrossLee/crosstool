@@ -64,7 +64,7 @@ public sealed class ImageFileActivationHandler
                     results.Add(new ImageFileActivationItemResult(
                         path,
                         null,
-                        "Crosio only accepts fully qualified JPEG, PNG, HEIC, HEIF, or TIFF image paths."));
+                        "一爪 only accepts fully qualified JPEG, PNG, HEIC, HEIF, or TIFF image paths."));
                     continue;
                 }
 

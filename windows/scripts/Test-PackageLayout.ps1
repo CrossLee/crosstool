@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param()
 
 $ErrorActionPreference = "Stop"
@@ -55,7 +55,7 @@ foreach ($requiredPath in @(
     Assert-True (Test-Path -LiteralPath $requiredPath -PathType Leaf) "Missing package input: $requiredPath"
 }
 
-$manifest = [xml](Get-Content -LiteralPath $manifestPath -Raw)
+$manifest = [xml](Get-Content -Encoding UTF8 -LiteralPath $manifestPath -Raw)
 $namespaces = [System.Xml.XmlNamespaceManager]::new($manifest.NameTable)
 $namespaces.AddNamespace("f", "http://schemas.microsoft.com/appx/manifest/foundation/windows10")
 $namespaces.AddNamespace("uap", "http://schemas.microsoft.com/appx/manifest/uap/windows10")
@@ -136,7 +136,7 @@ $itemTypes = @(
 )
 Assert-True (($itemTypes -contains "*") -and ($itemTypes -contains "Directory")) "Copy path must support both files and selected folders."
 
-$shellSource = Get-Content -LiteralPath $shellSourcePath -Raw
+$shellSource = Get-Content -Encoding UTF8 -LiteralPath $shellSourcePath -Raw
 $hexParts = [regex]::Matches($shellSource, "0x[0-9a-fA-F]+") | Select-Object -First 11
 Assert-True ($hexParts.Count -eq 11) "Could not read the native command CLSID."
 $nativeClsid = "{0:X8}-{1:X4}-{2:X4}-{3:X2}{4:X2}-{5:X2}{6:X2}{7:X2}{8:X2}{9:X2}{10:X2}" -f @(
@@ -154,14 +154,14 @@ $nativeClsid = "{0:X8}-{1:X4}-{2:X4}-{3:X2}{4:X2}-{5:X2}{6:X2}{7:X2}{8:X2}{9:X2}
 )
 Assert-True ($nativeClsid -eq $manifestClsid) "The native IExplorerCommand CLSID does not match Package.appxmanifest."
 
-$shellFragment = [xml](Get-Content -LiteralPath $shellFragmentPath -Raw)
+$shellFragment = [xml](Get-Content -Encoding UTF8 -LiteralPath $shellFragmentPath -Raw)
 $fragmentNamespaces = [System.Xml.XmlNamespaceManager]::new($shellFragment.NameTable)
 $fragmentNamespaces.AddNamespace("com", "http://schemas.microsoft.com/appx/manifest/com/windows10")
 $fragmentClass = $shellFragment.SelectSingleNode("//com:Class", $fragmentNamespaces)
 Assert-True ($null -ne $fragmentClass) "The Explorer command manifest reference is incomplete."
 Assert-True ($fragmentClass.GetAttribute("Id").ToUpperInvariant() -eq $manifestClsid) "The Explorer command manifest reference uses a different CLSID."
 
-$platformFragment = [xml](Get-Content -LiteralPath $platformFragmentPath -Raw)
+$platformFragment = [xml](Get-Content -Encoding UTF8 -LiteralPath $platformFragmentPath -Raw)
 $platformNamespaces = [System.Xml.XmlNamespaceManager]::new($platformFragment.NameTable)
 $platformNamespaces.AddNamespace("uap", "http://schemas.microsoft.com/appx/manifest/uap/windows10")
 $platformNamespaces.AddNamespace("desktop", "http://schemas.microsoft.com/appx/manifest/desktop/windows10")
@@ -174,11 +174,11 @@ $fragmentExtensions = @(
 )
 Assert-True (($fragmentExtensions -join "|") -eq ($actualExtensions -join "|")) "The file-association reference does not match the package manifest."
 
-$exports = Get-Content -LiteralPath $exportsPath -Raw
+$exports = Get-Content -Encoding UTF8 -LiteralPath $exportsPath -Raw
 Assert-True ($exports -match "(?m)^\s*DllGetClassObject\s") "DllGetClassObject is not exported."
 Assert-True ($exports -match "(?m)^\s*DllCanUnloadNow\s") "DllCanUnloadNow is not exported."
 
-$appProject = Get-Content -LiteralPath $appProjectPath -Raw
+$appProject = Get-Content -Encoding UTF8 -LiteralPath $appProjectPath -Raw
 Assert-True ($appProject -match "EnableMsixTooling") "Single-project MSIX tooling is not enabled."
 Assert-True ($appProject -match "<RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>") "The app must publish both win-x64 and win-arm64 runtimes."
 Assert-True ($appProject -match "<Platforms>x64;ARM64</Platforms>") "The app must expose both x64 and ARM64 package platforms."
@@ -200,7 +200,7 @@ foreach ($requiredProjectReference in @(
     Assert-True ($appProject -match $escapedProjectReference) "The app is missing its $requiredProjectReference project reference."
 }
 
-$mediaProject = Get-Content -LiteralPath $mediaProjectPath -Raw
+$mediaProject = Get-Content -Encoding UTF8 -LiteralPath $mediaProjectPath -Raw
 Assert-True ($mediaProject -match '<PackageReference Include="ScreenRecorderLib" Version="7\.0\.0"[^>]*/>') "The production recording backend must pin ScreenRecorderLib 7.0.0."
 # ScreenRecorderLib's NuGet target injects the copy-local assembly reference.
 # A second Content/None entry duplicates that DLL during transitive publish.
@@ -209,7 +209,7 @@ Assert-True ($mediaProject -notmatch '<(?:None|Content)\s+Include="[^"]*ScreenRe
 Assert-True ($mediaProject -match 'ScreenRecorderLib-LICENSE\.txt') "The ScreenRecorderLib license is not copied into app outputs."
 Assert-True ($mediaProject -match '<Platforms>x64;ARM64</Platforms>') "The recording backend must expose the two package architectures."
 
-$translationProject = Get-Content -LiteralPath $translationProjectPath -Raw
+$translationProject = Get-Content -Encoding UTF8 -LiteralPath $translationProjectPath -Raw
 foreach ($requiredTranslationNotice in @(
     "Microsoft.ML.OnnxRuntime-LICENSE.txt",
     "Microsoft.ML.OnnxRuntime-ThirdPartyNotices.txt",
@@ -219,10 +219,10 @@ foreach ($requiredTranslationNotice in @(
     Assert-True ($translationProject.Contains($requiredTranslationNotice)) "Translation output is missing $requiredTranslationNotice."
 }
 
-$thirdPartyNotices = Get-Content -LiteralPath $thirdPartyNoticesPath -Raw
+$thirdPartyNotices = Get-Content -Encoding UTF8 -LiteralPath $thirdPartyNoticesPath -Raw
 Assert-True ($thirdPartyNotices -match 'ScreenRecorderLib 7\.0\.0') "The ScreenRecorderLib license notice is missing."
 
-$buildMsix = Get-Content -LiteralPath $buildMsixPath -Raw
+$buildMsix = Get-Content -Encoding UTF8 -LiteralPath $buildMsixPath -Raw
 Assert-True ($buildMsix -match 'Resolve-CrosioVCRuntimeDirectory') "MSIX builds do not resolve the matching app-local VC++ runtime."
 $requiredLicensePayloads = @(
     "Licenses/Microsoft.ML.OnnxRuntime-LICENSE.txt",
@@ -252,7 +252,7 @@ Assert-True ($arm64RuntimeFiles -notcontains "vcruntime140_1.dll") "The ARM64 pa
 Assert-True ($buildMsix -match 'Get-CrosioRequiredVCRuntimeFiles') "MSIX inspection does not use the architecture-specific CRT payload."
 Assert-True ($appProject -match 'Content Remove="\$\(CrosioVCRuntimeDirectory\)\\vcruntime140_1\.dll"') "App staging does not exclude the incompatible ARM64 redist helper."
 
-$verifyWindows = Get-Content -LiteralPath $verifyWindowsPath -Raw
+$verifyWindows = Get-Content -Encoding UTF8 -LiteralPath $verifyWindowsPath -Raw
 Assert-True ($verifyWindows -match 'Resolve-CrosioVCRuntimeDirectory') "Unpackaged publishing does not resolve the matching app-local VC++ runtime."
 Assert-True ($verifyWindows -match 'Get-CrosioRequiredVCRuntimeFiles') "Unpackaged inspection does not use the architecture-specific CRT payload."
 Assert-True ($verifyWindows -match '-p:Platform=\$Platform') "Windows verification must pass Platform explicitly to native-aware builds."
@@ -260,12 +260,12 @@ foreach ($requiredLicensePayload in $requiredLicensePayloads) {
     Assert-True ($verifyWindows.Contains($requiredLicensePayload)) "Unpackaged verification does not require $requiredLicensePayload."
 }
 
-$buildBundle = Get-Content -LiteralPath $buildBundlePath -Raw
+$buildBundle = Get-Content -Encoding UTF8 -LiteralPath $buildBundlePath -Raw
 Assert-True ($buildBundle -match 'THIRD_PARTY_NOTICES\.md') "The release directory does not carry third-party notices."
-Assert-True ($buildBundle -match 'Crosio-Windows-\$Version-\$architectureName-\$packageFlavor\.msix') "Architecture MSIX release names do not identify their signing state."
-Assert-True ($buildBundle -match 'Crosio-Windows-\$Version-\$packageFlavor\.msixbundle') "MSIXBundle release names do not identify their signing state."
+Assert-True ($buildBundle -match '一爪-Windows-\$Version-\$architectureName-\$packageFlavor\.msix') "Architecture MSIX release names do not identify their signing state."
+Assert-True ($buildBundle -match '一爪-Windows-\$Version-\$packageFlavor\.msixbundle') "MSIXBundle release names do not identify their signing state."
 
-$shellProjectXml = [xml](Get-Content -LiteralPath $shellProjectPath -Raw)
+$shellProjectXml = [xml](Get-Content -Encoding UTF8 -LiteralPath $shellProjectPath -Raw)
 $msbuildNamespaces = [System.Xml.XmlNamespaceManager]::new($shellProjectXml.NameTable)
 $msbuildNamespaces.AddNamespace("msb", "http://schemas.microsoft.com/developer/msbuild/2003")
 $shellConfigurations = @(
@@ -275,7 +275,7 @@ $shellConfigurations = @(
 foreach ($requiredConfiguration in @("Debug|x64", "Release|x64", "Debug|ARM64", "Release|ARM64")) {
     Assert-True ($shellConfigurations -contains $requiredConfiguration) "The native Explorer command is missing $requiredConfiguration."
 }
-$shellProjectText = Get-Content -LiteralPath $shellProjectPath -Raw
+$shellProjectText = Get-Content -Encoding UTF8 -LiteralPath $shellProjectPath -Raw
 Assert-True ($shellProjectText -like '*artifacts\shell\$(Platform)\$(Configuration)\*') "The native Explorer command output is not routed to the package staging path."
 Assert-True ($shellProjectText -match "/utf-8") "The native Explorer command must compile its Chinese title as UTF-8."
 
@@ -284,15 +284,16 @@ $visualElements = $manifest.SelectSingleNode("//uap:VisualElements", $namespaces
 Assert-True ($visualElements.GetAttribute("Square44x44Logo") -eq 'Assets\Square44x44Logo.png') "The app-list icon must use its correctly sized asset family."
 Assert-True ($visualElements.GetAttribute("Square150x150Logo") -eq 'Assets\Square150x150Logo.png') "The tile icon must use its correctly sized asset family."
 Assert-True ($manifest.Package.Properties.Logo -eq 'Assets\StoreLogo.png') "The package logo must use its separate 50px asset family."
-$featureServices = Get-Content -LiteralPath (Join-Path $windowsRoot "src/Crosio.Windows.App/FeatureServices.cs") -Raw
+$featureServices = Get-Content -Encoding UTF8 -LiteralPath (Join-Path $windowsRoot "src/Crosio.Windows.App/FeatureServices.cs") -Raw
 Assert-True ($featureServices.Contains('_trayImage.Value.Handle') -and -not $featureServices.Contains('SystemIcons.Application')) "The tray must use the owned OnePaw icon, not the generic Windows icon."
-$mainWindow = Get-Content -LiteralPath (Join-Path $windowsRoot "src/Crosio.Windows.App/MainWindow.xaml.cs") -Raw
+$mainWindow = Get-Content -Encoding UTF8 -LiteralPath (Join-Path $windowsRoot "src/Crosio.Windows.App/MainWindow.xaml.cs") -Raw
 Assert-True ($mainWindow.Contains('AppWindow.SetIcon(ApplicationBranding.IconPath)')) "The main window must use the same OnePaw icon."
-$editorWindow = Get-Content -LiteralPath (Join-Path $windowsRoot "src/Crosio.Windows.Capture/Editor/ScreenshotEditorWindow.cs") -Raw
-$pickerWindow = Get-Content -LiteralPath (Join-Path $windowsRoot "src/Crosio.Windows.Capture/Selection/WindowsMultiWindowCaptureTargetPicker.cs") -Raw
+$editorWindow = Get-Content -Encoding UTF8 -LiteralPath (Join-Path $windowsRoot "src/Crosio.Windows.Capture/Editor/ScreenshotEditorWindow.cs") -Raw
+$pickerWindow = Get-Content -Encoding UTF8 -LiteralPath (Join-Path $windowsRoot "src/Crosio.Windows.Capture/Selection/WindowsMultiWindowCaptureTargetPicker.cs") -Raw
 Assert-True ($editorWindow.Contains('WindowBranding.ApplyIcon(this)') -and $pickerWindow.Contains('WindowBranding.ApplyIcon(this)')) "Capture tool windows must not retain generic Windows icons."
-$setupScript = Get-Content -LiteralPath (Join-Path $windowsRoot "scripts/build-setup.ps1") -Raw
-$setupDefinition = Get-Content -LiteralPath (Join-Path $windowsRoot "installer/CrosioSetup.nsi") -Raw
+$setupScript = Get-Content -Encoding UTF8 -LiteralPath (Join-Path $windowsRoot "scripts/build-setup.ps1") -Raw
+$setupDefinition = Get-Content -Encoding UTF8 -LiteralPath (Join-Path $windowsRoot "installer/CrosioSetup.nsi") -Raw
 Assert-True ($setupScript.Contains('Assets/OnePaw.ico') -and $setupDefinition.Contains('!define MUI_ICON "${CROSIO_ICON}"')) "The Setup.exe icon must match the application icon."
 
-Write-Host "Crosio package manifest, Explorer command registration, and payload layout are consistent."
+& (Join-Path $PSScriptRoot "Test-Branding.ps1")
+Write-Host "OnePaw package manifest, Explorer command registration, and payload layout are consistent."

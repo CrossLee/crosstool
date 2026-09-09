@@ -37,7 +37,7 @@ public sealed class TrayIconRegistration : IDisposable
         IntPtr iconHandle,
         uint callbackMessage,
         Guid iconGuid,
-        string tooltip = "Crosio")
+        string tooltip = "一爪")
     {
         if (windowHandle == IntPtr.Zero)
         {
@@ -76,14 +76,14 @@ public sealed class TrayIconRegistration : IDisposable
         var data = CreateData(NifMessage | NifIcon | NifTip | NifGuid);
         if (!ShellNotifyIcon(NimAdd, ref data))
         {
-            throw new Win32Exception(Marshal.GetLastWin32Error(), "Windows could not add the Crosio tray icon.");
+            throw new Win32Exception(Marshal.GetLastWin32Error(), "Windows could not add the 一爪 tray icon.");
         }
 
         data.VersionOrTimeout = NotifyIconVersion4;
         if (!ShellNotifyIcon(NimSetVersion, ref data))
         {
             _ = ShellNotifyIcon(NimDelete, ref data);
-            throw new Win32Exception(Marshal.GetLastWin32Error(), "Windows could not set the Crosio tray icon version.");
+            throw new Win32Exception(Marshal.GetLastWin32Error(), "Windows could not set the 一爪 tray icon version.");
         }
 
         _isAdded = true;
@@ -108,7 +108,7 @@ public sealed class TrayIconRegistration : IDisposable
         var data = CreateData(NifTip | NifGuid);
         if (!ShellNotifyIcon(NimModify, ref data))
         {
-            throw new Win32Exception(Marshal.GetLastWin32Error(), "Windows could not update the Crosio tray tooltip.");
+            throw new Win32Exception(Marshal.GetLastWin32Error(), "Windows could not update the 一爪 tray tooltip.");
         }
     }
 
@@ -126,7 +126,7 @@ public sealed class TrayIconRegistration : IDisposable
         data.InfoFlags = NiifInfo;
         if (!ShellNotifyIcon(NimModify, ref data))
         {
-            throw new Win32Exception(Marshal.GetLastWin32Error(), "Windows could not show the Crosio notification.");
+            throw new Win32Exception(Marshal.GetLastWin32Error(), "Windows could not show the 一爪 notification.");
         }
     }
 

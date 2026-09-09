@@ -1,4 +1,4 @@
-# Crosio Windows media module
+# 一爪 Windows media module
 
 This project keeps the Windows recording and color-sampling boundaries honest:
 
@@ -11,7 +11,7 @@ This project keeps the Windows recording and color-sampling boundaries honest:
   into `Recordings`.
 - The output profile is fixed at 30 fps H.264, with an optional 48 kHz stereo
   AAC track. Resolution, duration, file-size, and disk-space limits match the
-  existing Crosio product boundary.
+  existing 一爪 product boundary.
 - On Windows, `ScreenRecorderWindowsSessionFactory` connects
   Windows.Graphics.Capture and its Direct3D 11 frame path to Media Foundation
   H.264/AAC encoding. Display and window recordings explicitly select WGC;
@@ -33,18 +33,18 @@ This project keeps the Windows recording and color-sampling boundaries honest:
   A wedged native call can therefore time out without freezing the WinUI thread
   or keeping the process alive. If cleanup cannot be confirmed, or cancellation
   produced a finalized MP4, the controller preserves and surfaces the draft.
-- A native completion callback is not sufficient on its own: Crosio also
+- A native completion callback is not sufficient on its own: 一爪 also
   requires a non-empty file containing top-level `ftyp`, `moov` and non-empty
   `mdat` boxes before it marks the MP4 container finalized.
 - `WindowsScreenColorSampler` is a real composited-desktop pixel sampler using
-  Win32 physical virtual-desktop coordinates. The App must hide Crosio picker
+  Win32 physical virtual-desktop coordinates. The App must hide 一爪 picker
   windows before sampling. `WindowsTextClipboardWriter` writes and flushes the
   selected HEX/RGB/HSL representation to the Windows clipboard.
 
 The project multi-targets plain .NET 8 for portable state/format tests and
 Windows 10 19041+ for native API compilation. Windows 11 remains the intended
 runtime and manual acceptance environment. The pinned ScreenRecorderLib 7.0.0
-NuGet package contains separate x64 and ARM64 C++/CLI assets; both Crosio media
+NuGet package contains separate x64 and ARM64 C++/CLI assets; both 一爪 media
 targets must be built with an explicit matching `Platform` value. The native
 library also requires the matching Microsoft Visual C++ runtime and Windows
 Media Foundation (Windows N/KN editions may need the Media Feature Pack).

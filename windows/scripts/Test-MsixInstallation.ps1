@@ -31,7 +31,8 @@ if ($osArchitecture -ne "ARM64") {
 }
 
 $releaseDirectory = (Resolve-Path -LiteralPath $PackageDirectory).Path
-$installerPath = Join-Path $releaseDirectory "Install-Crosio.ps1"
+$brandName = -join @([char]0x4E00, [char]0x722A)
+$installerPath = Join-Path $releaseDirectory ((-join @([char]0x5B89, [char]0x88C5)) + "$brandName.ps1")
 $buildInfoPath = Join-Path $releaseDirectory "build-info.json"
 if (-not (Test-Path -LiteralPath $buildInfoPath -PathType Leaf)) {
     throw "Missing installation test input: $buildInfoPath"
@@ -40,12 +41,12 @@ $bundles = @(Get-ChildItem -LiteralPath $releaseDirectory -Filter "*.msixbundle"
 if ($bundles.Count -ne 1) {
     throw "Expected exactly one MSIX bundle in $releaseDirectory; found $($bundles.Count)."
 }
-$buildInfo = Get-Content -LiteralPath $buildInfoPath -Raw | ConvertFrom-Json
+$buildInfo = Get-Content -Encoding UTF8 -LiteralPath $buildInfoPath -Raw | ConvertFrom-Json
 $expectedVersion = [version]$buildInfo.version
 if ($buildInfo.product -ne "Crosio" -or @($buildInfo.architectures) -notcontains "ARM64") {
     throw "The build information does not identify an ARM64 Crosio release."
 }
-$setupPath = Join-Path $releaseDirectory "Crosio-Windows-$($buildInfo.version)-Setup.exe"
+$setupPath = Join-Path $releaseDirectory "$brandName-Windows-$($buildInfo.version)-Setup.exe"
 $selectedInstallerPath = if ($UseSetup) { $setupPath } else { $installerPath }
 if (-not (Test-Path -LiteralPath $selectedInstallerPath -PathType Leaf)) {
     throw "Missing installation test input: $selectedInstallerPath"
@@ -97,15 +98,15 @@ function ConvertFrom-UnicodeCodePoints {
 # Windows PowerShell 5.1 treats UTF-8 files without a BOM as ANSI. Keep this
 # script ASCII-only and construct the installer's localized UI contract from
 # Unicode code points so matching is stable on every runner code page.
-$script:SetupWindowTitle = "Crosio " + (ConvertFrom-UnicodeCodePoints @(0x5B89, 0x88C5))
+$script:SetupWindowTitle = $brandName + " " + (ConvertFrom-UnicodeCodePoints @(0x5B89, 0x88C5))
 $script:SetupInstallButtonPrefix = ConvertFrom-UnicodeCodePoints @(0x5B89, 0x88C5)
 $script:SetupFinishButtonPrefix = ConvertFrom-UnicodeCodePoints @(0x5B8C, 0x6210)
 $script:SetupFailureText = ConvertFrom-UnicodeCodePoints @(0x5B89, 0x88C5, 0x5931, 0x8D25)
 $script:SetupIncompleteText = ConvertFrom-UnicodeCodePoints @(0x5B89, 0x88C5, 0x672A, 0x5B8C, 0x6210)
 $script:SetupSystemInstallerText = ConvertFrom-UnicodeCodePoints @(0x7CFB, 0x7EDF, 0x5B89, 0x88C5, 0x670D, 0x52A1)
-$script:SetupRunOptionPrefix = (ConvertFrom-UnicodeCodePoints @(0x7ACB, 0x5373, 0x6253, 0x5F00)) + " Crosio"
+$script:SetupRunOptionPrefix = (ConvertFrom-UnicodeCodePoints @(0x7ACB, 0x5373, 0x6253, 0x5F00)) + " $brandName"
 $script:SetupCompletionText = (ConvertFrom-UnicodeCodePoints @(
-    0x8BF7, 0x5728, 0x5F00, 0x59CB, 0x83DC, 0x5355, 0x4E2D, 0x641C, 0x7D22)) + " Crosio"
+    0x8BF7, 0x5728, 0x5F00, 0x59CB, 0x83DC, 0x5355, 0x4E2D, 0x641C, 0x7D22)) + " $brandName"
 
 function Format-SetupDiagnosticText {
     param(
@@ -585,7 +586,7 @@ function Assert-SetupRunOptionUnchecked {
         try {
             $elementName = [string]$element.Current.Name
             if ($elementName.StartsWith($script:SetupRunOptionPrefix, [StringComparison]::OrdinalIgnoreCase) -or
-                $elementName.StartsWith("Run Crosio", [StringComparison]::OrdinalIgnoreCase)) {
+                $elementName.StartsWith("Run $brandName", [StringComparison]::OrdinalIgnoreCase)) {
                 try {
                     $null = $element.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern)
                     $runCheckBox = $element
@@ -940,7 +941,7 @@ namespace Crosio.MsixAcceptance
                 {
                     var title = new StringBuilder(256);
                     GetWindowTextW(window, title, title.Capacity);
-                    if (String.Equals(title.ToString(), "Crosio", StringComparison.Ordinal)) { found = window; }
+                    if (String.Equals(title.ToString(), "\u4e00\u722a", StringComparison.Ordinal)) { found = window; }
                 }
                 return true;
             }, IntPtr.Zero);
@@ -1069,6 +1070,10 @@ try {
     $ns.AddNamespace("desktop5", "http://schemas.microsoft.com/appx/manifest/desktop/windows10/5")
     $ns.AddNamespace("desktop", "http://schemas.microsoft.com/appx/manifest/desktop/windows10")
     $ns.AddNamespace("uap", "http://schemas.microsoft.com/appx/manifest/uap/windows10")
+    if ($manifest.SelectSingleNode("/f:Package/f:Properties/f:DisplayName", $ns).InnerText -ne $brandName -or
+        $manifest.SelectSingleNode("//uap:VisualElements", $ns).GetAttribute("DisplayName") -ne $brandName) {
+        throw "The installed package does not use the current display name."
+    }
     $verbs = @($manifest.SelectNodes("//desktop5:Verb", $ns))
     $itemTypes = @($manifest.SelectNodes("//desktop5:ItemType", $ns) | ForEach-Object { $_.GetAttribute("Type") })
     if ($verbs.Count -ne 2 -or $itemTypes -notcontains "*" -or $itemTypes -notcontains "Directory" -or
@@ -1076,7 +1081,8 @@ try {
         throw "Installed package is missing its file/folder Copy Path registrations."
     }
     $startup = $manifest.SelectSingleNode("//desktop:StartupTask[@TaskId='CrosioStartupTask']", $ns)
-    if ($null -eq $startup -or $startup.GetAttribute("Enabled") -ne "false") {
+    if ($null -eq $startup -or $startup.GetAttribute("Enabled") -ne "false" -or
+        $startup.GetAttribute("DisplayName") -ne $brandName) {
         throw "Installed package is missing its opt-in startup task."
     }
     $actualTypes = @($manifest.SelectNodes("//uap:FileTypeAssociation[@Name='crosio.images']/uap:SupportedFileTypes/uap:FileType", $ns) | ForEach-Object { $_.InnerText })

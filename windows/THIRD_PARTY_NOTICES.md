@@ -1,4 +1,4 @@
-# Third-party notices for Crosio Windows
+# Third-party notices for 一爪 Windows
 
 The installed application also carries the upstream license and notice files
 under its `Licenses` directory.
@@ -15,7 +15,7 @@ installed application on the user's computer. Source and license:
 
 ## Microsoft Windows App SDK 1.8.260804001
 
-Crosio uses the Microsoft Windows App SDK. The Microsoft software license
+一爪 uses the Microsoft Windows App SDK. The Microsoft software license
 terms and upstream third-party notice are included as
 `Licenses/Microsoft.WindowsAppSDK-LICENSE.txt` and
 `Licenses/Microsoft.WindowsAppSDK-NOTICE.txt`. Package:
@@ -23,7 +23,7 @@ terms and upstream third-party notice are included as
 
 ## Microsoft.ML.OnnxRuntime 1.24.4
 
-Crosio uses ONNX Runtime for local Marian translation inference. ONNX Runtime
+一爪 uses ONNX Runtime for local Marian translation inference. ONNX Runtime
 is distributed under the MIT License; its complete upstream license and
 third-party notices are included in the installed `Licenses` directory.
 Source: <https://github.com/microsoft/onnxruntime>. NuGet:
@@ -31,7 +31,7 @@ Source: <https://github.com/microsoft/onnxruntime>. NuGet:
 
 ## Microsoft.ML.Tokenizers 2.0.0
 
-Crosio uses Microsoft.ML.Tokenizers for local SentencePiece tokenization. Its
+一爪 uses Microsoft.ML.Tokenizers for local SentencePiece tokenization. Its
 MIT license and complete upstream third-party notices are included in the
 installed `Licenses` directory. Source:
 <https://github.com/dotnet/machinelearning>. NuGet:
@@ -39,7 +39,7 @@ installed `Licenses` directory. Source:
 
 ## Optional translation models
 
-Translation model weights are not bundled in Crosio. Crosio does bundle fixed,
+Translation model weights are not bundled in 一爪. 一爪 does bundle fixed,
 hash-pinned copies of the two complete license texts; when a user explicitly
 downloads a model, the matching text is injected into the local model pack
 without a separate license-network request, and its license is shown in the interface. The pinned Chinese-to-English
@@ -49,7 +49,7 @@ sources, revisions, hashes, and attribution rules are documented in
 
 ## ScreenRecorderLib 7.0.0
 
-Crosio's Windows recording backend uses ScreenRecorderLib 7.0.0, copyright
+一爪's Windows recording backend uses ScreenRecorderLib 7.0.0, copyright
 Sverre Kristoffer Skodje and contributors. The package is distributed under the
 MIT License. Source: <https://github.com/sskodje/ScreenRecorderLib>. NuGet:
 <https://www.nuget.org/packages/ScreenRecorderLib/7.0.0>.

@@ -58,7 +58,7 @@
                     x:Name="StatusBar"
                     IsOpen="False"
                     IsClosable="True"
-                    Title="Crosio"
+                    Title="一爪"
                     Message="{x:Bind ViewModel.Status, Mode=OneWay}" />
 
                 <Button
@@ -190,7 +190,7 @@
                 </StackPanel>
 
                 <StackPanel x:Name="SharingPanel" Spacing="12" Visibility="Collapsed">
-                    <TextBlock Text="同一局域网内可用浏览器收发文件和文字；只有当前 Crosio 可以停止共享。" TextWrapping="Wrap" />
+                    <TextBlock Text="同一局域网内可用浏览器收发文件和文字；只有当前一爪可以停止共享。" TextWrapping="Wrap" />
                     <TextBox
                         x:Name="SharedTextInput"
                         AcceptsReturn="True"
@@ -215,7 +215,7 @@
                 <StackPanel x:Name="SettingsPanel" Spacing="14" Visibility="Collapsed">
                     <ToggleSwitch
                         x:Name="StartWithWindowsToggle"
-                        Header="登录 Windows 时启动 Crosio"
+                        Header="登录 Windows 时启动一爪"
                         OffContent="已关闭"
                         OnContent="已开启"
                         Toggled="StartWithWindowsToggle_Toggled" />

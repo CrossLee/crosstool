@@ -145,7 +145,7 @@ function Find-CrosioMainWindow {
     )
 
     return [Crosio.StartupSmoke.NativeWindow]::FindVisibleTopLevelWindows($ProcessId) |
-        Where-Object { [StringComparer]::Ordinal.Equals($_.Title, "Crosio") } |
+        Where-Object { [StringComparer]::Ordinal.Equals($_.Title, (-join @([char]0x4E00, [char]0x722A))) } |
         Select-Object -First 1
 }
 
@@ -317,7 +317,7 @@ try {
         }
 
         throw (
-            "Crosio did not expose a stable, visible top-level window titled 'Crosio' before the startup deadline. " +
+            "The app did not expose a stable, visible top-level window with the current display name before the startup deadline. " +
             "PID=$($startedProcess.Id); ExitCode=$exitCode; VisibleTitles=$visibleTitles"
         )
     }

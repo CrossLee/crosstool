@@ -17,11 +17,11 @@
   <Identity
     Name="Crosio.Windows"
     Publisher="CN=Crosio, OID.2.25.311729368913984317654407730594956997722=1"
-    Version="0.1.20.0" />
+    Version="0.1.21.0" />
 
   <Properties>
-    <DisplayName>Crosio</DisplayName>
-    <PublisherDisplayName>Crosio</PublisherDisplayName>
+    <DisplayName>一爪</DisplayName>
+    <PublisherDisplayName>一爪</PublisherDisplayName>
     <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
 
@@ -45,21 +45,21 @@
       <uap:VisualElements
         AppListEntry="default"
         BackgroundColor="transparent"
-        Description="Crosio 截图、录屏、翻译、压缩与局域网共享工具"
-        DisplayName="Crosio"
+        Description="一爪截图、录屏、翻译、压缩与局域网共享工具"
+        DisplayName="一爪"
         Square150x150Logo="Assets\Square150x150Logo.png"
         Square44x44Logo="Assets\Square44x44Logo.png" />
 
       <Extensions>
         <uap:Extension Category="windows.protocol">
           <uap:Protocol Name="crosio">
-            <uap:DisplayName>Crosio</uap:DisplayName>
+            <uap:DisplayName>一爪</uap:DisplayName>
           </uap:Protocol>
         </uap:Extension>
 
         <uap:Extension Category="windows.fileTypeAssociation">
           <uap:FileTypeAssociation Name="crosio.images">
-            <uap:DisplayName>使用 Crosio 自动压缩</uap:DisplayName>
+            <uap:DisplayName>使用一爪自动压缩</uap:DisplayName>
             <uap:Logo>Assets\Square44x44Logo.png</uap:Logo>
             <uap:SupportedFileTypes>
               <uap:FileType>.jpg</uap:FileType>
@@ -82,12 +82,12 @@
           <desktop:StartupTask
             TaskId="CrosioStartupTask"
             Enabled="false"
-            DisplayName="Crosio" />
+            DisplayName="一爪" />
         </desktop:Extension>
 
         <com:Extension Category="windows.comServer">
           <com:ComServer>
-            <com:SurrogateServer DisplayName="Crosio shell commands">
+            <com:SurrogateServer DisplayName="一爪资源管理器命令">
               <com:Class
                 Id="6EA97827-5B42-4E82-8ABC-4FC22D3BE129"
                 Path="ShellExtensions\Crosio.Windows.ShellExtension.dll"

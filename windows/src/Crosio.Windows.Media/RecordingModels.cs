@@ -101,7 +101,7 @@ public sealed record RecordingRequest
             ? throw new ArgumentException("A completed-recording directory is required.", nameof(completedDirectory))
             : Path.GetFullPath(completedDirectory);
         SuggestedBaseName = string.IsNullOrWhiteSpace(suggestedBaseName)
-            ? "Crosio Recording"
+            ? "一爪录屏"
             : suggestedBaseName.Trim();
     }
 

@@ -9,7 +9,7 @@ public static class NativeRecordingFailureClassifier
 
         if (chain.Any(error => error is BadImageFormatException))
         {
-            return "[recording-architecture-mismatch] 录屏组件与当前 Crosio 架构不匹配，请安装对应的 x64 或 ARM64 版本。";
+            return "[recording-architecture-mismatch] 录屏组件与当前一爪架构不匹配，请安装对应的 x64 或 ARM64 版本。";
         }
 
         if (chain.Any(error =>
@@ -18,13 +18,13 @@ public static class NativeRecordingFailureClassifier
                 error.Message.Contains("CONCRT140", StringComparison.OrdinalIgnoreCase)) ||
             chain.Any(error => error is DllNotFoundException))
         {
-            return "[vc-runtime-missing] 缺少与 Crosio 架构匹配的 Microsoft Visual C++ 2015-2022 运行库，录屏无法启动。";
+            return "[vc-runtime-missing] 缺少与一爪架构匹配的 Microsoft Visual C++ 2015-2022 运行库，录屏无法启动。";
         }
 
         if (chain.Any(error => error is FileNotFoundException &&
                 error.Message.Contains("ScreenRecorderLib", StringComparison.OrdinalIgnoreCase)))
         {
-            return "[recording-component-missing] Crosio 的原生录屏组件缺失，安装包可能不完整，请重新安装对应架构版本。";
+            return "[recording-component-missing] 一爪的原生录屏组件缺失，安装包可能不完整，请重新安装对应架构版本。";
         }
 
         if (chain.Any(error =>

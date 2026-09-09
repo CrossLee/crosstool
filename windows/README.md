@@ -1,12 +1,14 @@
-# Crosio Windows
+# 一爪 Windows
 
-这里是 Crosio 的 Windows 11 原生版本工程。它复用 macOS 版的产品行为和验收标准，但所有系统能力都使用 Windows 原生 API 重新实现，不直接移植 SwiftUI/AppKit 代码。
+这里是一爪的 Windows 11 原生版本工程。电脑小事，一爪搞定。它复用 macOS 版的产品行为和验收标准，但所有系统能力都使用 Windows 原生 API 重新实现，不直接移植 SwiftUI/AppKit 代码。
 
 ## 普通用户安装
 
-在 GitHub 的 Windows 预览版发布页下载 `Crosio-Windows-版本号-Setup.exe`，双击后按中文向导点击“安装”和“完成”。不需要解压、不需要输入 PowerShell 命令，也不需要另装 .NET 或其他运行库。安装后从开始菜单打开 Crosio；卸载使用 Windows“设置 → 应用 → 已安装的应用”。
+在 [GitHub 的 Windows 预览版发布页](https://github.com/CrossLee/onepaw/releases)下载 `一爪-Windows-版本号-Setup.exe`，双击后按中文向导点击“安装”和“完成”。不需要解压、不需要输入 PowerShell 命令，也不需要另装 .NET 或其他运行库。安装后从开始菜单打开“一爪”；卸载使用 Windows“设置 → 应用 → 已安装的应用”。
 
 当前安装器和应用是未签名预览版，可能出现 Windows 未知发布者或安全提示，不代表已经有正式代码签名。安装需要管理员授权，不会导入信任证书或关闭系统安全功能。更多说明见 [TESTING.md](TESTING.md)。下文中的 PowerShell 命令仅供开发者构建和验证，不是用户安装步骤。
+
+当前准备的品牌更名版本为 `0.1.21.0`：界面、开始菜单、通知区域、文件关联和安装器显示为“一爪”，新安装包使用上述中文前缀。是否已发布以及实际测试结果以对应 Release 和 Actions 记录为准，不以本文中的构建示例作为发布完成证据。历史版本的标签、安装包文件名和验收记录保留原样。
 
 ## 当前边界
 
@@ -14,13 +16,13 @@
 
 - WinUI 3 主程序、单实例激活、协议/文件/后台启动路由；
 - 截图后立即复制原图、截图编辑器和置顶贴图的 Windows 模块；
-- 3 秒倒计时的通用 Crosio 设备壳截图、用户勾选可见顶层窗口的多窗口合成，以及 12 项可编辑全局快捷键（前三项截图快捷键默认必填，其余默认留空）；
+- 3 秒倒计时的通用一爪设备壳截图、用户勾选可见顶层窗口的多窗口合成，以及 12 项可编辑全局快捷键（前三项截图快捷键默认必填，其余默认留空）；
 - 图片压缩、压缩后在资源管理器定位、启动项和通知区域模块；
 - Windows 本地 OCR、UI Automation 读取当前选中文本；
 - Windows Graphics Capture 录制屏幕、区域或窗口，本机 H.264/AAC MP4、系统声音和鼠标指针开关，以及录制后的播放、定位与局域网分享入口；
 - 局域网文件/文字共享服务；
-- 原生 `IExplorerCommand`：“复制路径”直接在资源管理器进程外的 COM surrogate 中完成，不弹 Crosio 主界面；
-- 图片文件关联：“打开方式 → Crosio”走后台压缩激活；
+- 原生 `IExplorerCommand`：“复制路径”直接在资源管理器进程外的 COM surrogate 中完成，不弹一爪主界面；
+- 图片文件关联：“打开方式 → 一爪”走后台压缩激活；
 - 单项目 MSIX 清单、x64/ARM64 原生 DLL 打包、MSIXBundle 脚本和 Windows CI。
 
 翻译入口已经接入真实 Marian ONNX 推理引擎和协调器。界面可一键下载固定 revision、逐文件校验大小与 SHA-256 后安装中英双向模型，也保留选择本地模型 ZIP 的高级入口。仓库与安装包不捆绑数百 MB 的模型权重；首次下载需要联网，安装后原文与推理全程留在本机。所需方向未安装模型时，界面会明确提示，而不是假装翻译成功。当前模型卡许可按方向区分：中文到英文（zh-en）是 `CC-BY-4.0`，英文到简体中文（en-zh）是 `Apache-2.0`。模型包格式、安全校验与许可字段见 `src/Crosio.Windows.Translation/MODEL_PACK_FORMAT.md`。
@@ -40,7 +42,7 @@ windows/
 │   ├── build-msix.ps1            # 单架构 MSIX
 │   ├── build-msixbundle.ps1      # x64 + ARM64 MSIXBundle
 │   ├── build-setup.ps1           # 包含完整 MSIXBundle 的中文 Setup.exe
-│   └── Install-Crosio.ps1        # 签名包或 unsigned CI 包安装入口
+│   └── Install-Crosio.ps1        # 内部源脚本；发行副本为“安装一爪.ps1”
 ├── src/
 │   ├── Crosio.Windows.App/
 │   ├── Crosio.Windows.Core/
@@ -74,7 +76,9 @@ windows/
 
 Explorer 扩展采用系统 COM surrogate：`com:SurrogateServer` 直接注册 DLL 的 `com:Class`，不声明进程外 `Executable`/`Arguments`；可选 `AppId` 目前也不需要。清单、原生 CLSID、菜单 Verb 和包内 DLL 路径由 `Test-PackageLayout.ps1` 交叉检查。
 
-产品图标采用已确认的“一爪 OnePaw”猫咪伸爪拟物图。`Resources/Brand/OnePaw-AppIcon.png` 是未经修改的 1254×1254 生图原稿；`src/Crosio.Windows.App/Assets` 保存 Windows 所需的尺寸/格式导出，覆盖 MSIX 开始菜单与文件关联、应用 EXE、主窗口、通知区域及中文安装器。包身份、安装与数据路径继续兼容 Crosio，本轮不做名称迁移。
+产品图标采用已确认的“一爪 OnePaw”猫咪伸爪拟物图。`Resources/Brand/OnePaw-AppIcon.png` 是未经修改的 1254×1254 生图原稿；`src/Crosio.Windows.App/Assets` 保存 Windows 所需的尺寸/格式导出，覆盖 MSIX 开始菜单与文件关联、应用 EXE、主窗口、通知区域及中文安装器。此次统一用户可见名称，不改变已确认的图标。
+
+为保持旧版升级、系统注册和已有数据兼容，内部 `Crosio.Windows` Package Name、Publisher、包系列身份（PFN）、AUMID、`crosio:` 协议、COM GUID、启动任务标识及注册表键保持不变；`Crosio.exe`、程序集/命名空间、源文件路径、模型和设置等数据目录也保留原标识。这些兼容标识不是另一个产品，不能仅为消除旧名称而修改。升级不以卸载旧版或清空数据为前置步骤。
 
 这些导出只通过系统工具进行等比尺寸转换与 ICO 容器封装，不重绘、抠图、换色或改变构图。开发者可在 macOS 执行 `node windows/scripts/export-approved-icons.mjs` 重现；Windows 构建直接使用已提交的资产，无需安装图片工具。`IconAssets.json` 记录原稿和每份导出的 SHA-256，`Test-PackageLayout.ps1` 严格检查图标来源、尺寸、ICO 目录及引用；真实包内图标继续在解包时核验。尺寸依据 [Microsoft Windows 图标说明](https://learn.microsoft.com/en-us/windows/apps/design/iconography/app-icon-construction)。
 
@@ -94,7 +98,7 @@ Explorer 扩展采用系统 COM surrogate：`com:SurrogateServer` 直接注册 D
 .\scripts\Test-AppStartup.ps1
 ```
 
-脚本实际启动 `artifacts\publish\win-x64\Crosio.exe`，在 30 秒总预算内通过 PID 枚举可见顶层窗口，要求出现并稳定保持标题为 `Crosio` 的主窗口。它仅终止自己通过 `Start-Process` 启动并持有句柄的进程，不搜索或结束其他 Crosio 实例，也不操作注册表、配置和剪贴板。Windows App SDK 1.8 [支持 Windows Server 2022](https://learn.microsoft.com/windows/apps/windows-app-sdk/support)，因此该检查会在 GitHub `windows-2022` runner 上实际执行而不是跳过；但它只证明 unpackaged 主程序可以启动，Crosio 的发行与交互验收边界仍是 Windows 11 build 22000 以上。
+脚本实际启动 `artifacts\publish\win-x64\Crosio.exe`，在 30 秒总预算内通过 PID 枚举可见顶层窗口，要求出现并稳定保持标题为 `一爪` 的主窗口。它仅终止自己通过 `Start-Process` 启动并持有句柄的进程，不搜索或结束其他一爪实例，也不操作注册表、配置和剪贴板。Windows App SDK 1.8 [支持 Windows Server 2022](https://learn.microsoft.com/windows/apps/windows-app-sdk/support)，因此该检查会在 GitHub `windows-2022` runner 上实际执行而不是跳过；但它只证明 unpackaged 主程序可以启动，一爪的发行与交互验收边界仍是 Windows 11 build 22000 以上。
 
 只检查清单与 Explorer 扩展一致性：
 
@@ -107,14 +111,14 @@ Explorer 扩展采用系统 COM surrogate：`com:SurrogateServer` 直接注册 D
 单独生成一个架构的包：
 
 ```powershell
-.\scripts\build-msix.ps1 -Configuration Release -Architecture x64 -Version 0.1.1.0
-.\scripts\build-msix.ps1 -Configuration Release -Architecture ARM64 -Version 0.1.1.0
+.\scripts\build-msix.ps1 -Configuration Release -Architecture x64 -Version 0.1.21.0
+.\scripts\build-msix.ps1 -Configuration Release -Architecture ARM64 -Version 0.1.21.0
 ```
 
 一次生成 x64、ARM64 和组合安装包：
 
 ```powershell
-.\scripts\build-msixbundle.ps1 -Configuration Release -Version 0.1.1.0
+.\scripts\build-msixbundle.ps1 -Configuration Release -Version 0.1.21.0
 ```
 
 构建成功后的输出在 `windows\artifacts\release`。其中包括两个单架构 `.msix`、一个 `.msixbundle`、SHA-256 校验值、构建信息、安装脚本和 `THIRD_PARTY_NOTICES.md`；第三方声明也包含在每个 MSIX 及 unpackaged 测试目录内。
@@ -122,23 +126,24 @@ Explorer 扩展采用系统 COM surrogate：`com:SurrogateServer` 直接注册 D
 继续生成普通用户双击安装的 EXE（以下开关仅明确允许开发测试用的 unsigned MSIX，不允许坏签名）：
 
 ```powershell
-.\scripts\build-setup.ps1 -Version 0.1.1.0 -AllowUnsignedTestPackage
+.\scripts\build-setup.ps1 -Version 0.1.21.0 -AllowUnsignedTestPackage
 ```
 
-图形安装器由 NSIS 构建，嵌入本次生成的组合包，在后台交给 Windows 包管理器注册，不额外制造第二个卸载条目。CI 必须在 Windows 11 ARM64 环境实际点击同一 `Setup.exe` 的安装与完成按钮，再核对注册内容并启动 Crosio；发布页提供通过该流程的 EXE 和对应 SHA-256。
+图形安装器由 NSIS 构建，嵌入本次生成的组合包，在后台交给 Windows 包管理器注册，不额外制造第二个卸载条目。CI 必须在 Windows 11 ARM64 环境实际点击同一 `Setup.exe` 的安装与完成按钮，再核对注册内容并启动一爪；发布页只应提供通过该流程的 EXE 和对应 SHA-256。
 
-例如版本 `0.1.1.0` 在无证书时生成：
+例如版本 `0.1.21.0` 在无证书时生成：
 
-- `Crosio-Windows-0.1.1.0-x64-unsigned-test.msix`；
-- `Crosio-Windows-0.1.1.0-arm64-unsigned-test.msix`；
-- `Crosio-Windows-0.1.1.0-unsigned-test.msixbundle`。
+- `一爪-Windows-0.1.21.0-x64-unsigned-test.msix`；
+- `一爪-Windows-0.1.21.0-arm64-unsigned-test.msix`；
+- `一爪-Windows-0.1.21.0-unsigned-test.msixbundle`；
+- `一爪-Windows-0.1.21.0-Setup.exe`（继续运行 `build-setup.ps1` 后）。
 
-有证书时相同三个文件把 `unsigned-test` 改为 `signed`。Actions 中对应的归档名称为 `Crosio-windows-<版本>-unsigned-test` 或 `Crosio-windows-<版本>-signed`，另有 `Crosio-windows-x64-test-build` unpackaged 归档。
+有证书时前三个包文件把 `unsigned-test` 改为 `signed`。这不自动代表安装器 EXE 已签名；应分别核验应用包与 EXE 的签名状态。Actions 中对应的归档名称为 `一爪-windows-<版本>-unsigned-test` 或 `一爪-windows-<版本>-signed`，另有 `一爪-windows-x64-test-build` unpackaged 归档。
 
 无证书时生成的是文件名、Actions artifact 名和 `build-info.json` 都明确标记为 `unsigned-test` 的 Windows 11 测试包。它的 Publisher 含微软规定的 `OID.2.25` 标记；管理员 PowerShell 可运行同目录的：
 
 ```powershell
-.\Install-Crosio.ps1
+.\安装一爪.ps1
 ```
 
 脚本只会对真正未签名的包使用 `Add-AppxPackage -AllowUnsigned`。若包有无效或不受信任的签名，它会停止并提示处理证书，不会绕过签名错误。unsigned 包只用于开发测试；即使作为 GitHub prerelease 提供下载，也不是正式受信任的发行版。
@@ -148,8 +153,8 @@ Explorer 扩展采用系统 COM surrogate：`com:SurrogateServer` 直接注册 D
 ```powershell
 .\scripts\build-msixbundle.ps1 `
   -Configuration Release `
-  -Version 0.1.1.0 `
-  -CertificatePath C:\secure\Crosio.pfx `
+  -Version 0.1.21.0 `
+  -CertificatePath C:\secure\OnePaw.pfx `
   -CertificatePassword $env:CROSIO_CERT_PASSWORD
 ```
 
@@ -176,7 +181,8 @@ CI 不会把证书提交到仓库，并在结束步骤删除 runner 上的临时
 Windows 真机至少需要逐项确认：
 
 - 右键文件/文件夹只出现一个“复制路径”，多选顺序和 Unicode 路径正确，主界面不弹出；
-- 图片“打开方式 → Crosio”立即后台压缩，后缀与真实编码不变，源文件不覆盖，并自动定位输出文件；
+- 开始菜单、应用主窗口、通知区域、安装器及系统应用列表显示“一爪”，旧版升级后设置和模型仍可读取，没有重复安装条目；
+- 图片“打开方式 → 一爪”立即后台压缩，后缀与真实编码不变，源文件不覆盖，并自动定位输出文件；
 - 设置里的开机启动可启用/禁用，用户在系统设置禁用后不会被程序强行打开；
 - 截图先写入剪贴板再显示编辑器，`S` 贴图、滚轮按指针缩放、`Esc` 只关闭贴图；
 - 带壳截图倒计时、设备壳尺寸和保存/剪贴板结果正确；多窗口 `PrintWindow` 合成需覆盖 Chromium、UWP 和传统 Win32 窗口验证；

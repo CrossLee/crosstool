@@ -22,6 +22,10 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <RootNamespace>Crosio.Windows.App</RootNamespace>
     <AssemblyName>Crosio</AssemblyName>
+    <!-- Display metadata changes; the executable and package identities remain upgrade-compatible. -->
+    <Product>一爪</Product>
+    <AssemblyTitle>一爪</AssemblyTitle>
+    <Description>一爪截图、录屏、翻译、压缩与局域网共享工具</Description>
     <CrosioShellExtensionOutput>$(MSBuildThisFileDirectory)..\..\artifacts\shell\$(Platform)\$(Configuration)\Crosio.Windows.ShellExtension.dll</CrosioShellExtensionOutput>
   </PropertyGroup>
 

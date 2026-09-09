@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [ValidateSet("Debug", "Release")]
     [string]$Configuration = "Release",
@@ -74,20 +74,23 @@ $releasePackages = @()
 foreach ($package in $packages) {
     Copy-Item -LiteralPath $package -Destination (Join-Path $bundleInput ([System.IO.Path]::GetFileName($package))) -Force
     $architectureName = [System.IO.Path]::GetFileNameWithoutExtension($package).Replace("Crosio-Windows-", "")
-    $releasePackage = Join-Path $releaseOutput "Crosio-Windows-$Version-$architectureName-$packageFlavor.msix"
+    $releasePackage = Join-Path $releaseOutput "一爪-Windows-$Version-$architectureName-$packageFlavor.msix"
     Copy-Item -LiteralPath $package -Destination $releasePackage -Force
     $releasePackages += $releasePackage
 }
 
 $makeAppx = Resolve-CrosioWindowsSdkTool "makeappx.exe"
-$bundlePath = Join-Path $releaseOutput "Crosio-Windows-$Version-$packageFlavor.msixbundle"
+$bundlePath = Join-Path $releaseOutput "一爪-Windows-$Version-$packageFlavor.msixbundle"
 Invoke-CrosioChecked -Command $makeAppx -Arguments @("bundle", "/d", $bundleInput, "/p", $bundlePath, "/bv", $Version, "/o")
 
 $releaseNotices = Join-Path $releaseOutput "THIRD_PARTY_NOTICES.md"
 Copy-Item -LiteralPath $thirdPartyNotices -Destination $releaseNotices -Force
 
-$releaseInstaller = Join-Path $releaseOutput "Install-Crosio.ps1"
-Copy-Item -LiteralPath (Join-Path $PSScriptRoot "Install-Crosio.ps1") -Destination $releaseInstaller -Force
+$releaseInstaller = Join-Path $releaseOutput "安装一爪.ps1"
+# PowerShell 5.1 needs a BOM to read localized messages on non-Chinese Windows.
+[System.IO.File]::WriteAllText($releaseInstaller,
+    [System.IO.File]::ReadAllText((Join-Path $PSScriptRoot "Install-Crosio.ps1")),
+    [System.Text.UTF8Encoding]::new($true))
 $releaseTestingGuide = Join-Path $releaseOutput "TESTING.md"
 Copy-Item -LiteralPath (Join-Path $windowsRoot "TESTING.md") -Destination $releaseTestingGuide -Force
 

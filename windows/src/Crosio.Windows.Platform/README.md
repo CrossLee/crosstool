@@ -1,4 +1,4 @@
-# Crosio Windows platform services
+# 一爪 Windows platform services
 
 This project contains the Windows-only implementations used by the WinUI host:
 
@@ -13,7 +13,7 @@ This project contains the Windows-only implementations used by the WinUI host:
   and **Exit** commands and Explorer-restart recovery.
 
 Compression preserves the source extension and verifies that the encoded codec
-matches that extension. It always writes a sibling `-crosio` copy, uses numbered
+matches that extension. It always writes a sibling `-一爪` copy, uses numbered
 suffixes for collisions, and never overwrites the source. HEIF/HEIC availability
 depends on codecs installed on the Windows machine; a missing decoder or encoder
 is reported instead of silently changing formats.

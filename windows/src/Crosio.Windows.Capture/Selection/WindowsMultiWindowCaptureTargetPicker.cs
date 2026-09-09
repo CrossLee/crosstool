@@ -96,7 +96,7 @@ public sealed class WindowsMultiWindowCaptureTargetPicker : IMultiWindowCaptureT
         public MultiWindowPickerForm(IReadOnlyList<CaptureWindow> windows)
         {
             _windows = windows;
-            Text = "Crosio · 多窗口截图";
+            Text = "一爪 · 多窗口截图";
             Crosio.Windows.Capture.Interop.WindowBranding.ApplyIcon(this);
             StartPosition = FormStartPosition.CenterScreen;
             ClientSize = new Size(620, 470);

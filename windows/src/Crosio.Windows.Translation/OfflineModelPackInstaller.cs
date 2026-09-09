@@ -123,7 +123,7 @@ public sealed class OfflineModelPackInstaller : IDisposable, IAsyncDisposable
             info.Attributes.HasFlag(FileAttributes.ReparsePoint) ||
             info.Length is <= 0 or > MaximumArchiveBytes)
         {
-            throw new TranslationModelInvalidException("请选择普通的 Crosio 离线模型 ZIP 文件");
+            throw new TranslationModelInvalidException("请选择普通的一爪离线模型 ZIP 文件");
         }
 
         await using var stream = new FileStream(

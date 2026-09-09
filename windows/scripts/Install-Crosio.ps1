@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [string]$PackagePath
 )
@@ -7,11 +7,11 @@ $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
 if ($env:OS -ne "Windows_NT") {
-    throw "Crosio for Windows can only be installed on Windows 11."
+    throw "一爪 for Windows can only be installed on Windows 11."
 }
 
 if ([Environment]::OSVersion.Version.Build -lt 22000) {
-    throw "Crosio requires Windows 11 (build 22000) or later."
+    throw "一爪 requires Windows 11 (build 22000) or later."
 }
 
 if ([string]::IsNullOrWhiteSpace($PackagePath)) {
@@ -29,7 +29,7 @@ $signature = Get-AuthenticodeSignature -FilePath $resolvedPackage
 
 if ($signature.Status -eq [System.Management.Automation.SignatureStatus]::Valid) {
     Add-AppxPackage -Path $resolvedPackage
-    Write-Host "Crosio was installed successfully."
+    Write-Host "一爪 was installed successfully."
     return
 }
 
@@ -45,4 +45,4 @@ if (-not $isAdministrator) {
 }
 
 Add-AppxPackage -Path $resolvedPackage -AllowUnsigned
-Write-Host "The unsigned Crosio CI test package was installed successfully. Do not redistribute it as a production release."
+Write-Host "The unsigned 一爪 CI test package was installed successfully. Do not redistribute it as a production release."

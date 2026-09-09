@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [ValidateSet("Debug", "Release")]
     [string]$Configuration = "Release",
@@ -195,7 +195,7 @@ if ($Architecture -eq "ARM64" -and (Test-Path -LiteralPath (Join-Path $inspectio
 Assert-CrosioPeArchitecture $packagedShellDll $Architecture
 
 $generatedManifestPath = Join-Path $inspectionDirectory "AppxManifest.xml"
-$generatedManifest = [xml](Get-Content -LiteralPath $generatedManifestPath -Raw)
+$generatedManifest = [xml](Get-Content -Encoding UTF8 -LiteralPath $generatedManifestPath -Raw)
 $generatedNamespaces = [System.Xml.XmlNamespaceManager]::new($generatedManifest.NameTable)
 $generatedNamespaces.AddNamespace("f", "http://schemas.microsoft.com/appx/manifest/foundation/windows10")
 $generatedNamespaces.AddNamespace("uap", "http://schemas.microsoft.com/appx/manifest/uap/windows10")
@@ -209,6 +209,15 @@ if ($null -eq $generatedIdentity -or $generatedIdentity.GetAttribute("ProcessorA
 }
 if ($generatedIdentity.GetAttribute("Publisher") -ne $publisher -or $generatedIdentity.GetAttribute("Version") -ne $Version) {
     throw "The generated MSIX publisher or version does not match the requested package identity."
+}
+if ($generatedIdentity.GetAttribute("Name") -ne "Crosio.Windows" -or
+    $generatedManifest.SelectSingleNode("/f:Package/f:Properties/f:DisplayName", $generatedNamespaces).InnerText -ne "一爪" -or
+    $generatedManifest.SelectSingleNode("//uap:VisualElements", $generatedNamespaces).GetAttribute("DisplayName") -ne "一爪") {
+    throw "The generated MSIX lost the current display brand or its compatible package identity."
+}
+$appVersionInfo = [System.Diagnostics.FileVersionInfo]::GetVersionInfo((Join-Path $inspectionDirectory "Crosio.exe"))
+if ($appVersionInfo.ProductName -ne "一爪" -or $appVersionInfo.FileDescription -ne "一爪") {
+    throw "The packaged executable does not expose the current product display name."
 }
 
 $generatedComClass = $generatedManifest.SelectSingleNode("//com:Class", $generatedNamespaces)

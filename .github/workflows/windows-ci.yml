@@ -58,7 +58,7 @@ jobs:
       - name: Transfer the verified compiler to this run
         uses: actions/upload-artifact@v4
         with:
-          name: Crosio-nsis-3.12-build-tool
+          name: 一爪-nsis-3.12-build-tool
           path: ${{ runner.temp }}/crosio-nsis/nsis-3.12-setup.exe
           if-no-files-found: error
           retention-days: 1
@@ -92,7 +92,7 @@ jobs:
       - name: Download the pinned compiler from this run
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          name: Crosio-nsis-3.12-build-tool
+          name: 一爪-nsis-3.12-build-tool
           path: windows/artifacts/tools
 
       - name: Run Windows verification
@@ -102,7 +102,7 @@ jobs:
       - name: Upload unpackaged test build
         uses: actions/upload-artifact@v4
         with:
-          name: Crosio-windows-x64-test-build
+          name: 一爪-windows-x64-test-build
           path: windows/artifacts/publish/win-x64/**
           if-no-files-found: error
           retention-days: 14
@@ -157,7 +157,7 @@ jobs:
         if: success() && steps.signing_certificate.outputs.path == ''
         uses: actions/upload-artifact@v4
         with:
-          name: Crosio-windows-${{ steps.package_version.outputs.version }}-unsigned-test
+          name: 一爪-windows-${{ steps.package_version.outputs.version }}-unsigned-test
           path: windows/artifacts/release/**
           if-no-files-found: error
           retention-days: 14
@@ -166,7 +166,7 @@ jobs:
         if: success() && steps.signing_certificate.outputs.path != ''
         uses: actions/upload-artifact@v4
         with:
-          name: Crosio-windows-${{ steps.package_version.outputs.version }}-signed
+          name: 一爪-windows-${{ steps.package_version.outputs.version }}-signed
           path: windows/artifacts/release/**
           if-no-files-found: error
           retention-days: 14
@@ -187,7 +187,7 @@ jobs:
       - name: Download the MSIX test bundle
         uses: actions/download-artifact@v4
         with:
-          pattern: Crosio-windows-${{ needs.verify-windows.outputs.package_version }}-*
+          pattern: 一爪-windows-${{ needs.verify-windows.outputs.package_version }}-*
           merge-multiple: true
           path: windows/artifacts/install-test
 
@@ -226,7 +226,7 @@ jobs:
       - name: Download this run's unsigned release artifact
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          name: Crosio-windows-${{ needs.verify-windows.outputs.package_version }}-unsigned-test
+          name: 一爪-windows-${{ needs.verify-windows.outputs.package_version }}-unsigned-test
           path: windows/artifacts/preview-source
 
       - name: Assemble and validate the user preview assets
@@ -253,10 +253,10 @@ jobs:
             exit 1
           fi
 
-          bundle_name="Crosio-Windows-${version}-unsigned-test.msixbundle"
-          x64_name="Crosio-Windows-${version}-x64-unsigned-test.msix"
-          arm64_name="Crosio-Windows-${version}-arm64-unsigned-test.msix"
-          setup_name="Crosio-Windows-${version}-Setup.exe"
+          bundle_name="一爪-Windows-${version}-unsigned-test.msixbundle"
+          x64_name="一爪-Windows-${version}-x64-unsigned-test.msix"
+          arm64_name="一爪-Windows-${version}-arm64-unsigned-test.msix"
+          setup_name="一爪-Windows-${version}-Setup.exe"
           release_tag="windows-v${version}-preview"
 
           preview_root="$(mktemp -d "$RUNNER_TEMP/crosio-preview.XXXXXX")"
@@ -268,7 +268,7 @@ jobs:
             "$bundle_name"
             "$x64_name"
             "$setup_name"
-            "Install-Crosio.ps1"
+            "安装一爪.ps1"
             "SHA256SUMS.txt"
             "TESTING.md"
             "THIRD_PARTY_NOTICES.md"
@@ -306,7 +306,7 @@ jobs:
           # The source manifest is written on Windows, so normalize only its
           # line endings before GNU sha256sum validates the seven hashed payloads.
           tr -d '\r' < "$source_dir/SHA256SUMS.txt" > "$preview_root/source-SHA256SUMS.txt"
-          if grep -Evq '^[0-9a-f]{64}  [A-Za-z0-9._-]+$' "$preview_root/source-SHA256SUMS.txt"; then
+          if grep -Evq '^[0-9a-f]{64}  [^/\\[:cntrl:]]+$' "$preview_root/source-SHA256SUMS.txt"; then
             echo "The source checksum manifest has an unexpected format." >&2
             exit 1
           fi
@@ -316,7 +316,7 @@ jobs:
             "$bundle_name"
             "$x64_name"
             "$setup_name"
-            "Install-Crosio.ps1"
+            "安装一爪.ps1"
             "TESTING.md"
             "THIRD_PARTY_NOTICES.md"
           )
@@ -367,7 +367,7 @@ jobs:
             "$asset_dir/SHA256SUMS.txt" \
             --repo "$GITHUB_REPOSITORY" \
             --target "$RELEASE_TARGET_SHA" \
-            --title "Crosio Windows v${RELEASE_VERSION} 预览版" \
+            --title "一爪 Windows v${RELEASE_VERSION} 预览版" \
             --notes-file "$notes_file" \
             --draft \
             --prerelease \

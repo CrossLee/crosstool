@@ -9,7 +9,7 @@ public sealed class ImageFileActivationHandlerTests
     public async Task SuccessfulCompressionRevealsOutputsOnceAndKeepsWindowHidden()
     {
         var source = @"C:\Pictures\photo.JPG";
-        var output = @"C:\Pictures\photo-crosio.JPG";
+        var output = @"C:\Pictures\photo-一爪.JPG";
         var compressor = new FakeCompressor(path => ImageCompressionOutcome.Compressed(
             new ImageCompressionResult(path, output, 1_000, 400, 100, 80, true)));
         var revealer = new RecordingRevealer();

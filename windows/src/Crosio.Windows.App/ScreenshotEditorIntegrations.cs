@@ -47,7 +47,7 @@ internal sealed class ScreenshotEditorShareSink : IScreenshotEditorShareSink
         }
 
         Directory.CreateDirectory(_screenshotsDirectory);
-        var fileName = $"Crosio-{DateTime.Now:yyyyMMdd-HHmmss-fff}.png";
+        var fileName = $"一爪-{DateTime.Now:yyyyMMdd-HHmmss-fff}.png";
         var destination = UniqueDestination(fileName);
         var temporary = Path.Combine(
             _screenshotsDirectory,

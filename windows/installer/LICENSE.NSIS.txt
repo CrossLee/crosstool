@@ -3,10 +3,10 @@ Source and license: https://nsis.sourceforge.io/License
 
 Copyright (C) 1999-2026 Contributors
 
-Crosio Setup uses the NSIS installer engine, standard plug-ins, Modern UI and
+一爪 Setup uses the NSIS installer engine, standard plug-ins, Modern UI and
 stock graphics, and the zlib compression module. These components use the
-zlib/libpng license below. Crosio Setup does not use the bzip2 or LZMA modules.
-The Crosio installation scripts are separate work, not unmodified NSIS source.
+zlib/libpng license below. 一爪 Setup does not use the bzip2 or LZMA modules.
+The 一爪 installation scripts are separate work, not unmodified NSIS source.
 
 ZLIB/LIBPNG LICENSE
 

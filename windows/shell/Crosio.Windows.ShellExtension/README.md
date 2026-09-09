@@ -1,12 +1,12 @@
-# Crosio Windows Explorer command
+# 一爪 Windows Explorer command
 
 This native in-process COM component implements the Windows 11
 `IExplorerCommand` named **复制路径** for selected files and folders.
 
 The command copies the selected filesystem paths directly to `CF_UNICODETEXT`,
 one path per CRLF-delimited line. It deliberately does not launch
-`Crosio.Windows.App.exe`; invoking the command therefore cannot display or
-activate Crosio's main window.
+`Crosio.exe` (the stable internal executable name); invoking the command
+therefore cannot display or activate 一爪's main window.
 
 Build and packaging notes:
 

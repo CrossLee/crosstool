@@ -1,10 +1,10 @@
-# Crosio Windows 离线翻译模型包
+# 一爪 Windows 离线翻译模型包
 
 ## 系统能力结论
 
 截至 2026-09-06，Microsoft 的 Windows AI API 总览仍把 Live Translation 标为
 “Not yet supported”。Windows 11 没有一个面向普通桌面应用、可等价替代 Apple
-Translation 的公开本机文本翻译 API。因此 Crosio 不调用未公开的系统接口，也不以
+Translation 的公开本机文本翻译 API。因此一爪不调用未公开的系统接口，也不以
 云翻译兜底。
 
 参考：<https://learn.microsoft.com/windows/ai/apis/>
@@ -12,7 +12,7 @@ Translation 的公开本机文本翻译 API。因此 Crosio 不调用未公开�
 ## 运行边界
 
 - 翻译文字只进入本进程中的 SentencePiece 和 ONNX Runtime，不写入 HTTP 请求。
-- 唯一网络操作是用户明确点击官方模型下载时拉取固定 revision 的模型权重与分词文件；也可完全离线选择本地 ZIP 安装。下载请求为无正文的 HTTPS GET，完整许可文本由 Crosio 的固定内置载荷写入模型包，不另行联网获取。
+- 唯一网络操作是用户明确点击官方模型下载时拉取固定 revision 的模型权重与分词文件；也可完全离线选择本地 ZIP 安装。下载请求为无正文的 HTTPS GET，完整许可文本由一爪的固定内置载荷写入模型包，不另行联网获取。
 - 第一次下载并通过校验后，翻译可在断网状态下完成。
 - 没有对应方向的有效模型时，引擎抛出 `TranslationModelMissingException`，不得返回
   占位文字或假翻译。
@@ -36,7 +36,7 @@ Translation 的公开本机文本翻译 API。因此 Crosio 不调用未公开�
 | `source.spm` | `source.spm` | 804677 | `e27a3a1b539f4959ec72ea60e453f49156289f95d4e6000b29332efc45616203` |
 | `target.spm` | `target.spm` | 806530 | `6a881f4717cd7265f53fea54fd3dc689c767c05338fac7a4590f3088cb2d7855` |
 | `vocab.json` | `vocab.json` | 1747906 | `08a119a1defd522fa047cb5e3bfe3e89633e96caa38ced0dc9cee7ef1021a011` |
-| Crosio 内置 CC BY 4.0 完整文本 | `LICENSE.txt` | 18657 | `9ba9550ad48438d0836ddab3da480b3b69ffa0aac7b7878b5a0039e7ab429411` |
+| 一爪内置 CC BY 4.0 完整文本 | `LICENSE.txt` | 18657 | `9ba9550ad48438d0836ddab3da480b3b69ffa0aac7b7878b5a0039e7ab429411` |
 
 英文到中文固定使用 `Xenova/opus-mt-en-zh` revision
 `046f55aec303cdee3e0318604406d4df20f1e8ea`：
@@ -48,14 +48,14 @@ Translation 的公开本机文本翻译 API。因此 Crosio 不调用未公开�
 | `source.spm` | `source.spm` | 806435 | `5775ddc9e3ff2fae91554da56468ad35ff56edaba870fea74447bc7234bfdaa8` |
 | `target.spm` | `target.spm` | 804600 | `81dc94efa84e4025ef38d25d5d07429fe41e3eb29d44003f1db6fe98487b0052` |
 | `vocab.json` | `vocab.json` | 1747795 | `22c957348eed495ee925afc40a36da3e387c8a34a734c8486967c2dca271613e` |
-| Crosio 内置 Apache License 2.0 完整文本 | `LICENSE.txt` | 11358 | `cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30` |
+| 一爪内置 Apache License 2.0 完整文本 | `LICENSE.txt` | 11358 | `cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30` |
 
 许可必须按每个固定 revision 单独处理：中文到英文模型为 CC-BY-4.0，英文到中文模型为
 Apache-2.0，不能把两个方向概括成同一许可。包内保留完整许可文本与署名；运行界面应显示
 manifest 的 `license.attribution`。
 
 两个量化模型仓库在上述固定 revision 的文件树中均没有 `LICENSE` 文件。为避免安装流程依赖
-Creative Commons 或 Apache 网站上未版本化的实时响应，Crosio 固定内置了 2026-09-06 从两家
+Creative Commons 或 Apache 网站上未版本化的实时响应，一爪固定内置了 2026-09-06 从两家
 许可发布方核验的完整文本。内置文本解压后仍必须匹配上表的精确字节数和 SHA-256，且只在生成
 对应模型包时写入 `LICENSE.txt`；官方安装器不会为许可文本发起 HTTP 请求。
 

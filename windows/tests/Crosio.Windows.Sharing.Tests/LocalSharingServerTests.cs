@@ -55,13 +55,16 @@ public sealed class LocalSharingServerTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task LandingPageUsesEmbeddedCrosioWebClient()
+    public async Task LandingPageUsesCurrentBrandWithoutChangingTokenAuthentication()
     {
         using var response = await _client.GetAsync("/?token=test-token");
         var html = await response.Content.ReadAsStringAsync();
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Contains("Crosio", html, StringComparison.Ordinal);
+        Assert.Contains("<title>一爪 · 课堂共享区</title>", html, StringComparison.Ordinal);
+        Assert.Contains("<span class=\"brand-product\">一爪</span>", html, StringComparison.Ordinal);
+        Assert.Contains("由一爪提供", html.Replace(" ", ""), StringComparison.Ordinal);
+        Assert.DoesNotContain("Crosio", html, StringComparison.Ordinal);
         Assert.Contains("app.js", html, StringComparison.Ordinal);
     }
 

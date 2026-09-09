@@ -49,7 +49,7 @@ public sealed class WindowsGlobalHotkeyHost : IGlobalHotkeyHost, IHotkeyRegistra
             {
                 throw new Win32Exception(
                     Marshal.GetLastWin32Error(),
-                    "Windows 无法创建 Crosio 快捷键消息窗口");
+                    "Windows 无法创建一爪快捷键消息窗口");
             }
 
             _coordinator = new GlobalHotkeyRegistrationCoordinator(this);
@@ -208,7 +208,7 @@ public sealed class WindowsGlobalHotkeyHost : IGlobalHotkeyHost, IHotkeyRegistra
                 var error = Marshal.GetLastWin32Error();
                 if (error != ErrorClassAlreadyExists)
                 {
-                    throw new Win32Exception(error, "Windows 无法注册 Crosio 快捷键窗口类");
+                    throw new Win32Exception(error, "Windows 无法注册一爪快捷键窗口类");
                 }
             }
 

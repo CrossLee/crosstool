@@ -25,7 +25,7 @@ public sealed partial class WindowsScreenColorSampler : IScreenColorSampler
         {
             throw new Win32Exception(
                 Marshal.GetLastWin32Error(),
-                "Crosio could not acquire the desktop device context for color sampling.");
+                "一爪 could not acquire the desktop device context for color sampling.");
         }
 
         try
@@ -35,7 +35,7 @@ public sealed partial class WindowsScreenColorSampler : IScreenColorSampler
             {
                 throw new Win32Exception(
                     Marshal.GetLastWin32Error(),
-                    "Crosio could not read the selected screen pixel.");
+                    "一爪 could not read the selected screen pixel.");
             }
 
             // COLORREF stores 0x00BBGGRR.
@@ -58,7 +58,7 @@ public sealed partial class WindowsScreenColorSampler : IScreenColorSampler
         {
             throw new Win32Exception(
                 Marshal.GetLastWin32Error(),
-                "Crosio could not read the current pointer position.");
+                "一爪 could not read the current pointer position.");
         }
 
         return SampleAsync(new PixelPoint(point.X, point.Y), cancellationToken);

@@ -41,7 +41,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         FeatureId.WindowScreenshot => "选择一个窗口进行截图，完成后立即复制并进入标注。",
         FeatureId.ScreenScreenshot => "截取当前屏幕，完成后立即复制并进入标注。",
         FeatureId.DelayedScreenshot => "倒计时 5 秒后截取鼠标所在屏幕，再立即复制并进入标注。",
-        FeatureId.FramedScreenshot => "倒计时 3 秒后为当前屏幕加上 Crosio 通用设备外框。",
+        FeatureId.FramedScreenshot => "倒计时 3 秒后为当前屏幕加上一爪通用设备外框。",
         FeatureId.MultiWindowScreenshot => "明确勾选多个可见窗口，合成为一张透明背景图片。",
         FeatureId.LongScreenshot => "框选滚动区域并在滚动过程中拼接长图。",
         FeatureId.ScreenRecording or FeatureId.RegionRecording or FeatureId.WindowRecording =>
@@ -58,7 +58,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private static string GetStatus(FeatureId feature, string displayName) => feature switch
     {
         FeatureId.Home => "截图、快捷键、翻译、图片压缩、复制路径和局域网共享入口已经连接。",
-        FeatureId.ImageCompression => "可通过资源管理器“打开方式 → Crosio”后台压缩，完成后自动定位输出文件。",
+        FeatureId.ImageCompression => "可通过资源管理器“打开方式 → 一爪”后台压缩，完成后自动定位输出文件。",
         FeatureId.Settings => "可编辑 12 项全局快捷键与开机启动；快捷键整组注册成功后才保存。",
         FeatureId.RegionScreenshot or
         FeatureId.WindowScreenshot or

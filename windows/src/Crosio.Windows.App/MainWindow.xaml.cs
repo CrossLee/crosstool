@@ -60,7 +60,7 @@ public sealed partial class MainWindow : Window
         InitializeComponent();
         AppWindow.SetIcon(ApplicationBranding.IconPath);
         HotkeyList.ItemsSource = _hotkeyRows;
-        Title = "Crosio";
+        Title = "一爪";
         GreetingText.Text = TimeOfDayGreeting.ForHour(DateTime.Now.Hour);
         var translationDownloadBytes =
             OfficialTranslationModelInstaller.GetModelInfo(TranslationDirection.ChineseToEnglish).DownloadBytes +
@@ -753,7 +753,7 @@ public sealed partial class MainWindow : Window
         {
             if (IsCurrentTranslationUiRequest(request, generation))
             {
-                ShowFeatureStatus($"{error.Message}。请先安装对应的 Crosio 离线模型包。", isError: true);
+                ShowFeatureStatus($"{error.Message}。请先安装对应的一爪离线模型包。", isError: true);
             }
         }
         catch (TranslationException error)
@@ -959,7 +959,7 @@ public sealed partial class MainWindow : Window
 
             if (result.Status == StartupRegistrationStatus.RequiresUserAction)
             {
-                ShowFeatureStatus("Windows 设置中曾禁用 Crosio，请在“启动应用”里重新开启。", isError: true);
+                ShowFeatureStatus("Windows 设置中曾禁用一爪，请在“启动应用”里重新开启。", isError: true);
             }
         }
         catch (Exception error)

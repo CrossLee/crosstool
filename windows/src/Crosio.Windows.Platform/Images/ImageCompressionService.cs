@@ -90,14 +90,14 @@ public sealed class ImageCompressionService : IImageCompressionService
         {
             throw new ImageCompressionException(
                 ImageCompressionErrorCode.AnimatedOrMultipageImage,
-                "Crosio does not compress animated or multipage images because frames could be lost.");
+                "一爪 does not compress animated or multipage images because frames could be lost.");
         }
 
         if (decoder.DecoderInformation.CodecId != codec.DecoderId)
         {
             throw new ImageCompressionException(
                 ImageCompressionErrorCode.SourceFormatCannotBePreserved,
-                "The file contents do not match its extension, so Crosio cannot preserve the format safely.");
+                "The file contents do not match its extension, so 一爪 cannot preserve the format safely.");
         }
 
         var sourceWidth = decoder.OrientedPixelWidth;
@@ -187,7 +187,7 @@ public sealed class ImageCompressionService : IImageCompressionService
         {
             throw new ImageCompressionException(
                 ImageCompressionErrorCode.ImageTooLarge,
-                "Crosio does not process images larger than 50 million pixels or 32768 pixels on one edge.");
+                "一爪 does not process images larger than 50 million pixels or 32768 pixels on one edge.");
         }
     }
 
@@ -305,7 +305,7 @@ public sealed class ImageCompressionService : IImageCompressionService
         {
             throw new ImageCompressionException(
                 ImageCompressionErrorCode.ImageTooLarge,
-                "The decoded image would exceed Crosio's in-memory safety limit.");
+                "The decoded image would exceed 一爪's in-memory safety limit.");
         }
 
         var alphaMode = codec.PreservesAlpha
@@ -400,7 +400,7 @@ public sealed class ImageCompressionService : IImageCompressionService
         {
             throw new ImageCompressionException(
                 ImageCompressionErrorCode.EncodingFailed,
-                "The encoded image failed Crosio's format or dimension validation.");
+                "The encoded image failed 一爪's format or dimension validation.");
         }
 
         output.Seek(0);
@@ -436,7 +436,7 @@ public sealed class ImageCompressionService : IImageCompressionService
         return bytes;
     }
 
-    private static async Task<string> WriteWithoutOverwritingAsync(
+    internal static async Task<string> WriteWithoutOverwritingAsync(
         string sourcePath,
         byte[] bytes,
         CancellationToken cancellationToken)
@@ -491,7 +491,7 @@ public sealed class ImageCompressionService : IImageCompressionService
         {
             throw new ImageCompressionException(
                 ImageCompressionErrorCode.CannotWriteOutput,
-                "Crosio could not write the compressed copy beside the source image.",
+                "一爪 could not write the compressed copy beside the source image.",
                 exception);
         }
         finally
@@ -509,7 +509,7 @@ public sealed class ImageCompressionService : IImageCompressionService
 
         throw new ImageCompressionException(
             ImageCompressionErrorCode.CannotWriteOutput,
-            "Crosio could not allocate a unique output filename.");
+            "一爪 could not allocate a unique output filename.");
     }
 
     private sealed record EncodedCandidate(byte[] Bytes, uint Width, uint Height);

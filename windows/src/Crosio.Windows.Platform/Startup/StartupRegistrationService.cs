@@ -57,7 +57,7 @@ public sealed class StartupRegistrationService : IStartupRegistrationService
         ArgumentException.ThrowIfNullOrWhiteSpace(taskId);
         _taskId = taskId;
         _executablePath = executablePath ?? Environment.ProcessPath
-            ?? throw new InvalidOperationException("Windows did not report the Crosio executable path.");
+            ?? throw new InvalidOperationException("Windows did not report the 一爪 executable path.");
         _hasPackageIdentity = hasPackageIdentity ?? HasPackageIdentity;
     }
 
@@ -135,7 +135,7 @@ public sealed class StartupRegistrationService : IStartupRegistrationService
             {
                 return new StartupRegistrationResult(
                     StartupRegistrationStatus.RequiresUserAction,
-                    "Startup was disabled in Windows Settings or Task Manager. Re-enable Crosio there.");
+                    "Startup was disabled in Windows Settings or Task Manager. Re-enable 一爪 there.");
             }
 
             var state = await task.RequestEnableAsync();
@@ -159,19 +159,19 @@ public sealed class StartupRegistrationService : IStartupRegistrationService
             {
                 return new StartupRegistrationResult(
                     StartupRegistrationStatus.Disabled,
-                    "Crosio will not start when you sign in to Windows.");
+                    "一爪 will not start when you sign in to Windows.");
             }
 
             if (!string.Equals(value, BuildBackgroundCommand(), StringComparison.OrdinalIgnoreCase))
             {
                 return new StartupRegistrationResult(
                     StartupRegistrationStatus.RegistrationMismatch,
-                    "A different Crosio startup command is registered. Toggle the setting to repair it.");
+                    "A different 一爪 startup command is registered. Toggle the setting to repair it.");
             }
 
             return new StartupRegistrationResult(
                 StartupRegistrationStatus.Enabled,
-                "Crosio will start in the notification area when you sign in to Windows.");
+                "一爪 will start in the notification area when you sign in to Windows.");
         }
         catch (Exception exception)
         {
@@ -187,7 +187,7 @@ public sealed class StartupRegistrationService : IStartupRegistrationService
             !_executablePath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ||
             !Path.IsPathFullyQualified(_executablePath))
         {
-            throw new InvalidOperationException("The Crosio executable path is not safe to register.");
+            throw new InvalidOperationException("The 一爪 executable path is not safe to register.");
         }
 
         return $"\"{_executablePath}\" --background";
@@ -197,13 +197,13 @@ public sealed class StartupRegistrationService : IStartupRegistrationService
     {
         "Enabled" or "EnabledByPolicy" => new StartupRegistrationResult(
             StartupRegistrationStatus.Enabled,
-            "Crosio will start in the notification area when you sign in to Windows."),
+            "一爪 will start in the notification area when you sign in to Windows."),
         "Disabled" => new StartupRegistrationResult(
             StartupRegistrationStatus.Disabled,
-            "Crosio will not start when you sign in to Windows."),
+            "一爪 will not start when you sign in to Windows."),
         "DisabledByUser" => new StartupRegistrationResult(
             StartupRegistrationStatus.RequiresUserAction,
-            "Startup was disabled in Windows Settings or Task Manager. Re-enable Crosio there."),
+            "Startup was disabled in Windows Settings or Task Manager. Re-enable 一爪 there."),
         "DisabledByPolicy" => new StartupRegistrationResult(
             StartupRegistrationStatus.DisabledByPolicy,
             "Your Windows administrator has disabled startup apps."),

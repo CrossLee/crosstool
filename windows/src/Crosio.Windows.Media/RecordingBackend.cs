@@ -122,7 +122,7 @@ public sealed class RecordingFileStore : IRecordingFileStore
         {
             throw new RecordingException(
                 RecordingFailureCode.FinalizationFailed,
-                "Only regular recording drafts owned by Crosio can be finalized.");
+                "Only regular recording drafts owned by 一爪 can be finalized.");
         }
 
         if (!File.Exists(fullDraftPath))
@@ -193,6 +193,6 @@ public sealed class RecordingFileStore : IRecordingFileStore
             .ToArray())
             .TrimEnd('.', ' ');
 
-        return string.IsNullOrWhiteSpace(sanitized) ? "Crosio Recording" : sanitized;
+        return string.IsNullOrWhiteSpace(sanitized) ? "一爪录屏" : sanitized;
     }
 }

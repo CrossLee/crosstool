@@ -12,7 +12,7 @@
   <com:Extension Category="windows.comServer">
     <com:ComServer>
       <com:SurrogateServer
-        DisplayName="Crosio shell commands">
+        DisplayName="一爪资源管理器命令">
         <com:Class
           Id="6EA97827-5B42-4E82-8ABC-4FC22D3BE129"
           Path="ShellExtensions\Crosio.Windows.ShellExtension.dll"

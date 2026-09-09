@@ -874,7 +874,7 @@ public sealed class RecordingSessionController : IAsyncDisposable
                 _preparedRequest is not null)
             {
                 pendingStart = null;
-                gracefulFinalization = BeginStopLocked("Crosio 正在退出，正在安全封装录屏…");
+                gracefulFinalization = BeginStopLocked("一爪正在退出，正在安全封装录屏…");
                 active = null;
                 draftPath = null;
             }
