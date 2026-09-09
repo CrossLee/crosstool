@@ -17,7 +17,7 @@
   <Identity
     Name="Crosio.Windows"
     Publisher="CN=Crosio, OID.2.25.311729368913984317654407730594956997722=1"
-    Version="0.1.19.0" />
+    Version="0.1.20.0" />
 
   <Properties>
     <DisplayName>Crosio</DisplayName>
