@@ -1,10 +1,12 @@
 using Crosio.Windows.Core.Activation;
 using Crosio.Windows.Capture;
 using Crosio.Windows.Core.Features;
+using Crosio.Windows.Core.Presentation;
 using Crosio.Windows.Core.Settings;
 using Crosio.Windows.Media;
 using Crosio.Windows.Platform.Images;
 using Crosio.Windows.Platform.Shell;
+using Crosio.Windows.Platform.Tray;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Microsoft.UI.Dispatching;
@@ -171,6 +173,11 @@ public partial class App : Application
             return;
         }
 
+        if (!TryAllowMainWindowDisplay())
+        {
+            return;
+        }
+
         var preparedRoute = route;
         string? selectionMessage = null;
         if (route.Feature == FeatureId.TextTranslation && route.Inputs.Count == 0)
@@ -190,13 +197,21 @@ public partial class App : Application
             }
         }
 
+        // Selected-text acquisition yields to the dispatcher. A capture or
+        // recording may have started since the first visibility check, so the
+        // visual operation gets the final say immediately before showing UI.
+        if (!TryAllowMainWindowDisplay())
+        {
+            return;
+        }
+
         var window = EnsureMainWindow();
         window.ApplyRoute(preparedRoute);
         if (selectionMessage is not null)
         {
             window.ShowFeatureStatus(selectionMessage, isError: true);
         }
-        window.Activate();
+        window.ShowAndActivate();
     }
 
     private async Task InitializeResidentServicesAsync()
@@ -235,7 +250,10 @@ public partial class App : Application
 
             var tray = _featureServices.TrayIcon;
             tray.OpenRequested += OnTrayOpenRequested;
+            tray.RecordingCommandRequested += OnTrayRecordingCommandRequested;
             tray.ExitRequested += OnTrayExitRequested;
+            tray.SetRecordingControlState(RecordingTrayStateFor(
+                _featureServices.Recording.Snapshot.Phase));
             tray.Start();
         }
         catch (Exception error)
@@ -326,9 +344,57 @@ public partial class App : Application
             return;
         }
 
+        if (!TryAllowMainWindowDisplay())
+        {
+            return;
+        }
+
         var window = EnsureMainWindow();
         window.ApplyRoute(ActivationRoute.Navigate(FeatureId.Home));
-        window.Activate();
+        window.ShowAndActivate();
+    }
+
+    private async void OnTrayRecordingCommandRequested(
+        object? sender,
+        TrayRecordingCommandRequestedEventArgs args)
+    {
+        if (IsExiting)
+        {
+            return;
+        }
+
+        try
+        {
+            var controller = _featureServices.Recording;
+            var phase = controller.Snapshot.Phase;
+            switch (args.Command)
+            {
+                case TrayRecordingCommand.Cancel
+                    when phase is RecordingSessionPhase.CheckingCapabilities or
+                        RecordingSessionPhase.Starting:
+                    await controller.CancelAsync();
+                    break;
+
+                case TrayRecordingCommand.StopAndSave
+                    when phase == RecordingSessionPhase.Recording:
+                    await controller.StopAsync();
+                    break;
+
+                // The menu can become stale between opening it and choosing an
+                // item. A mismatched command must never affect the new state.
+            }
+        }
+        catch (OperationCanceledException) when (IsExiting)
+        {
+            // Shutdown owns cancellation after every native callback returns.
+        }
+        catch (Exception error)
+        {
+            // This is an async-void native event handler, so every exception
+            // must be contained here instead of reaching the message loop.
+            Debug.WriteLine($"Crosio tray recording command failed: {error}");
+            ShowTrayInformation("录屏操作失败", error.Message);
+        }
     }
 
     private async void OnTrayExitRequested(object? sender, EventArgs args)
@@ -349,6 +415,7 @@ public partial class App : Application
         if (_featureServices.IsTrayIconHostCreated)
         {
             _featureServices.TrayIcon.OpenRequested -= OnTrayOpenRequested;
+            _featureServices.TrayIcon.RecordingCommandRequested -= OnTrayRecordingCommandRequested;
             _featureServices.TrayIcon.ExitRequested -= OnTrayExitRequested;
         }
         if (_mainWindow is { } window)
@@ -409,7 +476,10 @@ public partial class App : Application
                 return;
             }
 
-            _mainWindow?.HideForBackgroundAction();
+            if (_mainWindow is { } mainWindow)
+            {
+                await mainWindow.HideForBackgroundActionAsync();
+            }
 
             if (feature == FeatureId.LongScreenshot)
             {
@@ -570,7 +640,10 @@ public partial class App : Application
                 return;
             }
 
-            _mainWindow?.HideForBackgroundAction();
+            if (_mainWindow is { } mainWindow)
+            {
+                await mainWindow.HideForBackgroundActionAsync();
+            }
             await Task.Delay(TimeSpan.FromMilliseconds(700));
             var sample = await _featureServices.ScreenColorSampler.SampleCursorAsync();
             _featureServices.RecentColors.Confirm(sample.Color);
@@ -640,7 +713,7 @@ public partial class App : Application
                 {
                     ShowTrayInformation(
                         "正在录屏",
-                        "请使用当前录制类型的快捷键停止，或从一爪主界面停止。");
+                        "请使用当前录制类型的快捷键停止，或从托盘菜单停止并保存。");
                     return;
                 }
 
@@ -668,7 +741,10 @@ public partial class App : Application
 
             var includeSystemAudio = _mainWindow?.CaptureSystemAudio ?? true;
             var includeCursor = _mainWindow?.ShowRecordingCursor ?? true;
-            _mainWindow?.HideForBackgroundAction();
+            if (_mainWindow is { } mainWindow)
+            {
+                await mainWindow.HideForBackgroundActionAsync();
+            }
 
             var target = await PickRecordingTargetAsync(feature);
             if (target is null)
@@ -810,21 +886,23 @@ public partial class App : Application
             _mainWindow?.ApplyRecordingSnapshot(snapshot);
             try
             {
-                if (_featureServices.TrayIcon.IsStarted)
+                var tray = _featureServices.TrayIcon;
+                tray.SetRecordingControlState(RecordingTrayStateFor(snapshot.Phase));
+                if (tray.IsStarted)
                 {
-                    _featureServices.TrayIcon.UpdateTooltip(
+                    tray.UpdateTooltip(
                         snapshot.Phase == RecordingSessionPhase.Recording
                             ? "一爪 · 正在录屏"
                             : "一爪");
                     if (snapshot.Phase == RecordingSessionPhase.Completed && snapshot.OutputPath is { } outputPath)
                     {
-                        _featureServices.TrayIcon.ShowInformation(
+                        tray.ShowInformation(
                             "录屏已保存",
                             Path.GetFileName(outputPath));
                     }
                     else if (snapshot.Phase == RecordingSessionPhase.Failed)
                     {
-                        _featureServices.TrayIcon.ShowInformation(
+                        tray.ShowInformation(
                             "录屏失败",
                             snapshot.Message ?? "无法完成这次录屏。");
                     }
@@ -908,6 +986,35 @@ public partial class App : Application
         RecordingSessionPhase.Starting or
         RecordingSessionPhase.Recording or
         RecordingSessionPhase.Stopping;
+
+    private static TrayRecordingControlState RecordingTrayStateFor(
+        RecordingSessionPhase phase) => phase switch
+    {
+        RecordingSessionPhase.CheckingCapabilities or
+            RecordingSessionPhase.Starting => TrayRecordingControlState.CanCancel,
+        RecordingSessionPhase.Recording => TrayRecordingControlState.CanStopAndSave,
+        RecordingSessionPhase.Stopping => TrayRecordingControlState.Saving,
+        _ => TrayRecordingControlState.Hidden,
+    };
+
+    private bool TryAllowMainWindowDisplay()
+    {
+        var recordingInProgress = IsRecordingBusy(
+            _featureServices.Recording.Snapshot.Phase);
+        if (!MainWindowVisibilityPolicy.ShouldKeepHidden(
+                visualOperationInProgress: _featureGate.CurrentCount == 0,
+                recordingInProgress: recordingInProgress))
+        {
+            return true;
+        }
+
+        ShowTrayInformation(
+            "操作进行中",
+            recordingInProgress
+                ? "录屏期间主界面保持隐藏。请从托盘菜单停止录屏，或再次按录屏快捷键停止。"
+                : "完成当前截图或取色操作后再打开一爪。");
+        return false;
+    }
 
     private static bool IsRecordingFeature(FeatureId feature) => feature is
         FeatureId.ScreenRecording or

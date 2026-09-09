@@ -20,6 +20,8 @@ public sealed class TrayIconHost : IDisposable
     private const uint NinSelect = 0x0400;
     private const uint NinKeySelect = 0x0401;
     private const uint MfString = 0x0000;
+    private const uint MfGrayed = 0x0001;
+    private const uint MfDisabled = 0x0002;
     private const uint MfSeparator = 0x0800;
     private const uint TpmRightButton = 0x0002;
     private const uint TpmReturnCommand = 0x0100;
@@ -27,6 +29,7 @@ public sealed class TrayIconHost : IDisposable
     private const int GwlpUserData = -21;
     private const uint OpenMenuCommand = 1;
     private const uint ExitMenuCommand = 2;
+    private const uint RecordingMenuCommand = 3;
     private const string WindowClassName = "Crosio.Tray.MessageWindow.v1";
 
     private static readonly object ClassRegistrationLock = new();
@@ -38,6 +41,7 @@ public sealed class TrayIconHost : IDisposable
     private GCHandle _selfHandle;
     private IntPtr _windowHandle;
     private TrayIconRegistration? _registration;
+    private TrayRecordingControlState _recordingControlState;
     private bool _disposed;
 
     public TrayIconHost(IntPtr iconHandle, Guid iconGuid, string tooltip = "一爪")
@@ -106,6 +110,8 @@ public sealed class TrayIconHost : IDisposable
 
     public event EventHandler? ExitRequested;
 
+    public event EventHandler<TrayRecordingCommandRequestedEventArgs>? RecordingCommandRequested;
+
     public Exception? LastCallbackError { get; private set; }
 
     public bool IsStarted => _registration?.IsAdded == true;
@@ -122,6 +128,14 @@ public sealed class TrayIconHost : IDisposable
         EnsureOwnerThread();
         ObjectDisposedException.ThrowIf(_disposed, this);
         _registration!.UpdateTooltip(tooltip);
+    }
+
+    public void SetRecordingControlState(TrayRecordingControlState state)
+    {
+        EnsureOwnerThread();
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        _ = TrayRecordingMenuPolicy.ForState(state);
+        _recordingControlState = state;
     }
 
     public void ShowInformation(string title, string message)
@@ -226,9 +240,25 @@ public sealed class TrayIconHost : IDisposable
 
         try
         {
-            if (!AppendMenu(menu, MfString, OpenMenuCommand, "打开一爪") ||
-                !AppendMenu(menu, MfSeparator, 0, null) ||
-                !AppendMenu(menu, MfString, ExitMenuCommand, "退出"))
+            var recordingItem = TrayRecordingMenuPolicy.ForState(_recordingControlState);
+            var menuCreated = AppendMenu(menu, MfString, OpenMenuCommand, "打开一爪");
+            if (recordingItem is not null)
+            {
+                var recordingFlags = MfString |
+                    (recordingItem.IsEnabled ? 0 : MfGrayed | MfDisabled);
+                menuCreated = menuCreated &&
+                    AppendMenu(menu, MfSeparator, 0, null) &&
+                    AppendMenu(
+                        menu,
+                        recordingFlags,
+                        RecordingMenuCommand,
+                        recordingItem.Label);
+            }
+
+            menuCreated = menuCreated &&
+                AppendMenu(menu, MfSeparator, 0, null) &&
+                AppendMenu(menu, MfString, ExitMenuCommand, "退出");
+            if (!menuCreated)
             {
                 throw new Win32Exception(Marshal.GetLastWin32Error());
             }
@@ -246,6 +276,21 @@ public sealed class TrayIconHost : IDisposable
                 case OpenMenuCommand:
                     OpenRequested?.Invoke(this, EventArgs.Empty);
                     break;
+                case RecordingMenuCommand:
+                {
+                    var currentItem = TrayRecordingMenuPolicy.ForState(_recordingControlState);
+                    if (currentItem is
+                        {
+                            IsEnabled: true,
+                            Command: { } recordingCommand,
+                        })
+                    {
+                        RecordingCommandRequested?.Invoke(
+                            this,
+                            new TrayRecordingCommandRequestedEventArgs(recordingCommand));
+                    }
+                    break;
+                }
                 case ExitMenuCommand:
                     ExitRequested?.Invoke(this, EventArgs.Empty);
                     break;

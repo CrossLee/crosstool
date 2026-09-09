@@ -29,6 +29,13 @@ if ($osBuild -lt 22000) {
     )
 }
 
+$windowAcceptancePath = Join-Path $PSScriptRoot "WindowAcceptance.ps1"
+if (-not (Test-Path -LiteralPath $windowAcceptancePath -PathType Leaf)) {
+    throw "The shared window acceptance helper was not found: $windowAcceptancePath"
+}
+. $windowAcceptancePath
+$expectedHomeName = -join @([char]0x9996, [char]0x9875)
+
 if ([string]::IsNullOrWhiteSpace($ApplicationPath)) {
     $ApplicationPath = Join-Path $windowsRoot "artifacts/publish/win-x64/Crosio.exe"
 }
@@ -262,6 +269,8 @@ $startedProcess = $null
 $startedProcessId = $null
 $processStartedAt = $null
 $mainWindow = $null
+$mainWindowAssessment = $null
+$lastWindowAssessment = $null
 $smokeException = $null
 $cleanupException = $null
 
@@ -289,18 +298,31 @@ try {
 
         $candidate = Find-CrosioMainWindow -ProcessId $startedProcess.Id
         if ($null -ne $candidate) {
-            Start-Sleep -Milliseconds 400
-            $startedProcess.Refresh()
-            if ($startedProcess.HasExited) {
-                $exitCode = Get-StartedProcessExitCode -StartedProcess $startedProcess
-                Write-Host "Crosio PID $($startedProcess.Id) exited after showing a window. ExitCode=$exitCode"
-                throw "Crosio exited immediately after its main window appeared. ExitCode=$exitCode"
-            }
+            $candidateAssessment = Get-OnePawInteractiveWindowAssessment `
+                -WindowHandle $candidate.Handle `
+                -ExpectedHomeName $expectedHomeName
+            $lastWindowAssessment = $candidateAssessment
+            if ($candidateAssessment.Accepted) {
+                Start-Sleep -Milliseconds 400
+                $startedProcess.Refresh()
+                if ($startedProcess.HasExited) {
+                    $exitCode = Get-StartedProcessExitCode -StartedProcess $startedProcess
+                    Write-Host "Crosio PID $($startedProcess.Id) exited after showing a window. ExitCode=$exitCode"
+                    throw "Crosio exited immediately after its main window appeared. ExitCode=$exitCode"
+                }
 
-            $stableCandidate = Find-CrosioMainWindow -ProcessId $startedProcess.Id
-            if ($null -ne $stableCandidate) {
-                $mainWindow = $stableCandidate
-                break
+                $stableCandidate = Find-CrosioMainWindow -ProcessId $startedProcess.Id
+                if ($null -ne $stableCandidate -and $stableCandidate.Handle -eq $candidate.Handle) {
+                    $stableAssessment = Get-OnePawInteractiveWindowAssessment `
+                        -WindowHandle $stableCandidate.Handle `
+                        -ExpectedHomeName $expectedHomeName
+                    $lastWindowAssessment = $stableAssessment
+                    if ($stableAssessment.Accepted) {
+                        $mainWindow = $stableCandidate
+                        $mainWindowAssessment = $stableAssessment
+                        break
+                    }
+                }
             }
         }
 
@@ -315,10 +337,16 @@ try {
         if ([string]::IsNullOrWhiteSpace($visibleTitles)) {
             $visibleTitles = "<none>"
         }
+        $windowDiagnostic = if ($null -eq $lastWindowAssessment) {
+            "<no titled visible window was inspected>"
+        }
+        else {
+            $lastWindowAssessment.Summary
+        }
 
         throw (
-            "The app did not expose a stable, visible top-level window with the current display name before the startup deadline. " +
-            "PID=$($startedProcess.Id); ExitCode=$exitCode; VisibleTitles=$visibleTitles"
+            "The app did not expose a stable, onscreen, restored and UIA-ready main window before the startup deadline. " +
+            "PID=$($startedProcess.Id); ExitCode=$exitCode; VisibleTitles=$visibleTitles; LastAssessment=$windowDiagnostic"
         )
     }
 }
@@ -389,5 +417,6 @@ if ($null -ne $smokeException) {
 $windowHandle = "0x{0:X}" -f $mainWindow.Handle.ToInt64()
 Write-Host (
     "Crosio unpackaged startup smoke passed. " +
-    "PID=$startedProcessId; HWND=$windowHandle; Title='$($mainWindow.Title)'; OSBuild=$osBuild; Elapsed=$($smokeWatch.Elapsed)"
+    "PID=$startedProcessId; HWND=$windowHandle; Title='$($mainWindow.Title)'; " +
+    "$($mainWindowAssessment.Summary); OSBuild=$osBuild; Elapsed=$($smokeWatch.Elapsed)"
 )

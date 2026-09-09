@@ -180,6 +180,10 @@ test('the actual package-version implementation accepts bounds and fails closed 
 });
 
 test('workflow safety checks are part of every Windows verification run', () => {
-  assert.ok(step('Verify Windows workflow safety policy')
-    .includes('node --test .\\scripts\\test-windows-workflow.mjs .\\scripts\\test-windows-workflow-inputs.test.mjs'));
+  const safetyStep = step('Verify Windows workflow safety policy');
+  for (const entry of [
+    '.\\scripts\\test-windows-workflow.mjs',
+    '.\\scripts\\test-windows-workflow-inputs.test.mjs',
+    '.\\scripts\\test-window-acceptance-contract.mjs',
+  ]) assert.ok(safetyStep.includes(entry), `Workflow safety step does not run ${entry}`);
 });

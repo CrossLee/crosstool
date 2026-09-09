@@ -9,6 +9,7 @@ using Crosio.Windows.Platform.Images;
 using Crosio.Windows.Platform.Startup;
 using Crosio.Windows.Sharing;
 using Crosio.Windows.Translation;
+using Microsoft.UI.Windowing;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -18,6 +19,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Windows.ApplicationModel.DataTransfer;
+using Windows.Graphics;
 using Windows.Storage.Pickers;
 using Windows.System;
 using Windows.UI.Core;
@@ -36,6 +38,8 @@ public sealed class FeatureActionRequestedEventArgs : EventArgs
 
 public sealed partial class MainWindow : Window
 {
+    private const int DefaultWindowWidth = 1120;
+    private const int DefaultWindowHeight = 720;
     private readonly ActivationRouter _router = new();
     private readonly FeatureServices _services;
     private readonly ObservableCollection<HotkeyRowViewModel> _hotkeyRows = new(
@@ -51,7 +55,6 @@ public sealed partial class MainWindow : Window
     private WindowTranslationRequest? _translationUiRequest;
     private long _translationUiGeneration;
     private string? _latestRecordingPath;
-    private bool _windowExcludedFromCapture;
     private bool _windowClosed;
 
     internal MainWindow(FeatureServices services)
@@ -108,9 +111,44 @@ public sealed partial class MainWindow : Window
         StatusBar.IsOpen = !string.IsNullOrWhiteSpace(message);
     }
 
-    public void HideForBackgroundAction()
+    internal async Task HideForBackgroundActionAsync()
     {
         AppWindow.Hide();
+
+        var compositionFlushed = TryFlushDesktopComposition();
+        if (!AppWindow.IsVisible && compositionFlushed)
+        {
+            return;
+        }
+
+        const int maximumVisibilityChecks = 4;
+        for (var attempt = 0; attempt < maximumVisibilityChecks; attempt++)
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(16));
+            compositionFlushed = TryFlushDesktopComposition();
+            if (!AppWindow.IsVisible && compositionFlushed)
+            {
+                return;
+            }
+        }
+
+        if (AppWindow.IsVisible)
+        {
+            Debug.WriteLine("Crosio main window remained visible after the bounded hide barrier.");
+        }
+    }
+
+    internal void ShowAndActivate()
+    {
+        var presenter = AppWindow.Presenter as OverlappedPresenter;
+        if (presenter?.State == OverlappedPresenterState.Minimized)
+        {
+            presenter.Restore(activateWindow: false);
+        }
+
+        EnsureMainWindowOnScreen(presenter);
+        AppWindow.Show(activateWindow: true);
+        Activate();
     }
 
     internal void BeginShutdown()
@@ -1355,35 +1393,120 @@ public sealed partial class MainWindow : Window
 
     private void OnWindowActivated(object sender, Microsoft.UI.Xaml.WindowActivatedEventArgs args)
     {
-        if (args.WindowActivationState != WindowActivationState.Deactivated)
-        {
-            EnsureWindowExcludedFromCapture();
-        }
-
         if (args.WindowActivationState == WindowActivationState.Deactivated)
         {
             EndHotkeyRecording();
         }
     }
 
-    private void EnsureWindowExcludedFromCapture()
+    private void EnsureMainWindowOnScreen(OverlappedPresenter? presenter)
     {
-        if (_windowExcludedFromCapture)
-        {
-            return;
-        }
-
         try
         {
-            var windowHandle = WinRT.Interop.WindowNative.GetWindowHandle(this);
-            _windowExcludedFromCapture = SetWindowDisplayAffinity(
-                windowHandle,
-                WindowDisplayAffinityExcludeFromCapture);
+            var displayAreas = DisplayArea.FindAll();
+            var workAreas = displayAreas
+                .Select(ToDesktopWorkArea)
+                .ToArray();
+            var originalWindowBounds = GetWindowBounds();
+            var windowBounds = UseMainWindowFallbackSize(originalWindowBounds);
+
+            if (windowBounds == originalWindowBounds &&
+                WindowPlacementPolicy.IntersectsAnyWorkArea(windowBounds, workAreas))
+            {
+                return;
+            }
+
+            var wasMaximized = presenter?.State == OverlappedPresenterState.Maximized;
+            try
+            {
+                if (wasMaximized)
+                {
+                    presenter!.Restore(activateWindow: false);
+                    windowBounds = UseMainWindowFallbackSize(GetWindowBounds());
+                }
+
+                var targetDisplay = displayAreas.FirstOrDefault(display => display.IsPrimary) ??
+                    DisplayArea.Primary;
+                var targetWorkArea = targetDisplay.WorkArea;
+                var targetBounds = WindowPlacementPolicy.CenterInWorkArea(
+                    windowBounds,
+                    new DesktopRectangle(
+                        targetWorkArea.X,
+                        targetWorkArea.Y,
+                        targetWorkArea.Width,
+                        targetWorkArea.Height));
+
+                AppWindow.MoveAndResize(
+                    new RectInt32(
+                        targetBounds.X,
+                        targetBounds.Y,
+                        targetBounds.Width,
+                        targetBounds.Height),
+                    targetDisplay);
+            }
+            finally
+            {
+                if (wasMaximized && presenter!.State != OverlappedPresenterState.Maximized)
+                {
+                    presenter.Maximize();
+                }
+            }
         }
-        catch
+        catch (Exception error)
         {
-            // Capture exclusion is a best-effort privacy boundary. The main
-            // window is also hidden before Crosio starts its own capture flow.
+            // Recovery is best-effort. Showing and activating the window must
+            // still succeed if Windows cannot enumerate the current displays.
+            Debug.WriteLine($"Crosio could not recover the main-window position: {error}");
+        }
+    }
+
+    private static DesktopRectangle UseMainWindowFallbackSize(DesktopRectangle windowBounds) =>
+        WindowPlacementPolicy.UseFallbackSize(
+            windowBounds,
+            DefaultWindowWidth,
+            DefaultWindowHeight);
+
+    private DesktopRectangle GetWindowBounds()
+    {
+        var position = AppWindow.Position;
+        var size = AppWindow.Size;
+        return new DesktopRectangle(
+            position.X,
+            position.Y,
+            size.Width,
+            size.Height);
+    }
+
+    private static DesktopRectangle ToDesktopWorkArea(DisplayArea displayArea)
+    {
+        var outerBounds = displayArea.OuterBounds;
+        var workArea = displayArea.WorkArea;
+
+        // WorkArea coordinates are relative to the containing DisplayArea;
+        // AppWindow.Position uses desktop screen coordinates.
+        return WindowPlacementPolicy.ToDesktopCoordinates(
+            new DesktopRectangle(
+                outerBounds.X,
+                outerBounds.Y,
+                outerBounds.Width,
+                outerBounds.Height),
+            new DesktopRectangle(
+                workArea.X,
+                workArea.Y,
+                workArea.Width,
+                workArea.Height));
+    }
+
+    private static bool TryFlushDesktopComposition()
+    {
+        try
+        {
+            return DwmFlush() >= 0;
+        }
+        catch (Exception error)
+        {
+            Debug.WriteLine($"Crosio could not flush desktop composition: {error}");
+            return false;
         }
     }
 
@@ -1430,11 +1553,9 @@ public sealed partial class MainWindow : Window
         Clipboard.Flush();
     }
 
-    private const uint WindowDisplayAffinityExcludeFromCapture = 0x00000011;
-
-    [DllImport("user32.dll", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool SetWindowDisplayAffinity(nint windowHandle, uint affinity);
+    [DllImport("dwmapi.dll", ExactSpelling = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    private static extern int DwmFlush();
 
 }
 

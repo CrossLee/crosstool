@@ -29,6 +29,8 @@
 
 这仍是 Windows 预览版，不等于已完成全部桌面交互验收。开发机是 macOS，Windows 专属验证交给真实 Windows CI：x64 测试、WinUI/MSVC 编译、原生复制路径调用与主窗口启动，以及 Windows 11 ARM64 的 MSIX 安装和已注册应用启动。具体通过情况以对应版本的 Actions 记录为准；截图、录屏、OCR、多屏、资源管理器实际右键菜单等交互仍需在 Windows 11 x64 和 ARM64 桌面分别验收。
 
+本次候选修复了“本机有任务栏图标，但远程桌面看不到主窗口”的捕获属性和窗口恢复链路。普通主窗口必须为 `WDA_NONE`；截图固定窗以及长截图边框/工具栏仍排除捕获。截图、取色和录屏前会隐藏主窗口并等待桌面合成，相关操作忙碌时也会阻止主窗口被重新打开。录屏期间主窗口保持隐藏，停止能力改由通知区域右键“停止并保存录屏”和同一录屏快捷键保持可达；能力检查或启动阶段可从该控制入口取消。完整行为、自动检查与 UU Remote / Windows 11 x64 真机边界见[主窗口远程可见性修复记录](../docs/windows-main-window-visibility-verification.md)。本轮没有发布或安装该候选。
+
 ## 工程结构
 
 ```text
@@ -98,7 +100,7 @@ Explorer 扩展采用系统 COM surrogate：`com:SurrogateServer` 直接注册 D
 .\scripts\Test-AppStartup.ps1
 ```
 
-脚本实际启动 `artifacts\publish\win-x64\Crosio.exe`，在 30 秒总预算内通过 PID 枚举可见顶层窗口，要求出现并稳定保持标题为 `一爪` 的主窗口。它仅终止自己通过 `Start-Process` 启动并持有句柄的进程，不搜索或结束其他一爪实例，也不操作注册表、配置和剪贴板。Windows App SDK 1.8 [支持 Windows Server 2022](https://learn.microsoft.com/windows/apps/windows-app-sdk/support)，因此该检查会在 GitHub `windows-2022` runner 上实际执行而不是跳过；但它只证明 unpackaged 主程序可以启动，一爪的发行与交互验收边界仍是 Windows 11 build 22000 以上。
+脚本实际启动 `artifacts\publish\win-x64\Crosio.exe`，在 30 秒总预算内要求标题为“一爪”的主窗口连续两次通过原生窗口与 UI Automation 验收：可见、非最小化、非 DWM cloaked、`WDA_NONE`、矩形为正且与活动显示器工作区相交，并能找到可见可用的“首页”关键元素。它仅终止自己通过 `Start-Process` 启动并持有句柄的进程，不搜索或结束其他一爪实例，也不操作注册表、配置和剪贴板。Windows App SDK 1.8 [支持 Windows Server 2022](https://learn.microsoft.com/windows/apps/windows-app-sdk/support)，因此该检查会在 GitHub `windows-2022` runner 上实际执行而不是跳过；但它只证明 unpackaged 主程序可以启动，一爪的发行与交互验收边界仍是 Windows 11 build 22000 以上。
 
 只检查清单与 Explorer 扩展一致性：
 
@@ -168,7 +170,7 @@ Windows 源码已合入 `main` 的 `windows/` 目录，不再需要切换到平�
 2. 构建 x64 与 ARM64 MSIX；
 3. 用 `MakeAppx` 生成 MSIXBundle；
 4. 生成“一爪”中文图形安装器，并上传 unpackaged 测试目录和未签名安装包；
-5. 在 Windows 11 ARM64 环境通过界面完成首次和同版本重复安装，检查显示名和启动。
+5. 在 Windows 11 ARM64 环境通过界面完成首次和同版本重复安装，检查显示名；启动后验证主窗口原生状态与 UI Automation，再隐藏精确窗口并从同一 AUMID 再次激活，确认驻留主进程可靠恢复主窗口。
 
 普通 push/PR 和默认手动运行**只验证，不发布**。在 GitHub Actions 选择 `Windows` → `Run workflow`，分支选 `main`，只有显式勾选 `publish_preview` 才会在本轮构建与 ARM64 安装全部通过后尝试公开预览版。其他分支即使勾选也不会发布。
 
@@ -180,6 +182,9 @@ Windows 源码已合入 `main` 的 `windows/` 目录，不再需要切换到平�
 
 Windows 真机至少需要逐项确认：
 
+- UU Remote 连接 Windows 11 x64 时，主窗口内容可被远端逐像素看到，不是只出现任务栏图标；主窗口为 `WDA_NONE`，而截图固定窗、长截图边框和工具栏继续不进入截图/录屏内容；
+- 截图、取色和录屏前主窗口隐藏帧已完成合成；操作忙碌期间从开始菜单、第二次启动或通知区域打开不会让主窗口混入画面，结束后窗口可以从最小化或屏幕外可靠恢复；
+- 主窗口在录屏期间保持隐藏时，通知区域右键“停止并保存录屏”可用，能力检查/启动阶段可取消，同一录屏快捷键可停止，并能完成可播放 MP4 的安全封装；
 - 右键文件/文件夹只出现一个“复制路径”，多选顺序和 Unicode 路径正确，主界面不弹出；
 - 开始菜单、应用主窗口、通知区域、安装器及系统应用列表显示“一爪”，旧版升级后设置和模型仍可读取，没有重复安装条目；
 - 图片“打开方式 → 一爪”立即后台压缩，后缀与真实编码不变，源文件不覆盖，并自动定位输出文件；

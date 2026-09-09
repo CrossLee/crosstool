@@ -94,7 +94,11 @@ jobs:
 
       - name: Verify Windows workflow safety policy
         shell: pwsh
-        run: node --test .\scripts\test-windows-workflow.mjs .\scripts\test-windows-workflow-inputs.test.mjs
+        run: >-
+          node --test
+          .\scripts\test-windows-workflow.mjs
+          .\scripts\test-windows-workflow-inputs.test.mjs
+          .\scripts\test-window-acceptance-contract.mjs
 
       - name: Install .NET 8
         uses: actions/setup-dotnet@v4
@@ -175,7 +179,7 @@ jobs:
           name: 一爪-windows-${{ needs.verify-windows.outputs.package_version }}-unsigned-test
           path: windows/artifacts/install-test
 
-      - name: Click through Setup and launch the installed Windows 11 ARM64 app
+      - name: Install, inspect, hide, and reactivate the Windows 11 ARM64 app
         shell: powershell
         run: .\windows\scripts\Test-MsixInstallation.ps1 -PackageDirectory .\windows\artifacts\install-test -UseSetup
 

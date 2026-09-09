@@ -30,8 +30,15 @@ if ($osArchitecture -ne "ARM64") {
     throw "This installation acceptance test requires an ARM64 Windows 11 host; found $osArchitecture."
 }
 
+$windowAcceptancePath = Join-Path $PSScriptRoot "WindowAcceptance.ps1"
+if (-not (Test-Path -LiteralPath $windowAcceptancePath -PathType Leaf)) {
+    throw "The shared window acceptance helper was not found: $windowAcceptancePath"
+}
+. $windowAcceptancePath
+
 $releaseDirectory = (Resolve-Path -LiteralPath $PackageDirectory).Path
 $brandName = -join @([char]0x4E00, [char]0x722A)
+$expectedHomeName = -join @([char]0x9996, [char]0x9875)
 $installerPath = Join-Path $releaseDirectory ((-join @([char]0x5B89, [char]0x88C5)) + "$brandName.ps1")
 $buildInfoPath = Join-Path $releaseDirectory "build-info.json"
 if (-not (Test-Path -LiteralPath $buildInfoPath -PathType Leaf)) {
@@ -710,12 +717,20 @@ namespace Crosio.MsixAcceptance
     {
         private readonly object gate = new object();
         private readonly ManualResetEventSlim done = new ManualResetEventSlim(false);
+        private readonly int acceptedExistingProcessId;
         private bool stopRequested;
         private Process process;
         private Exception error;
+        private int returnedProcessId;
 
         internal ActivationOperation(string appId, string packageName)
+            : this(appId, packageName, -1)
         {
+        }
+
+        internal ActivationOperation(string appId, string packageName, int acceptedExistingProcessId)
+        {
+            this.acceptedExistingProcessId = acceptedExistingProcessId;
             var thread = new Thread(() => Run(appId, packageName));
             thread.IsBackground = true;
             thread.SetApartmentState(ApartmentState.STA);
@@ -725,6 +740,7 @@ namespace Crosio.MsixAcceptance
         public bool Wait(int milliseconds) { return done.Wait(milliseconds); }
         public Exception Error { get { return error; } }
         public Process Process { get { lock (gate) { return process; } } }
+        public int ReturnedProcessId { get { return returnedProcessId; } }
 
         private void Run(string appId, string packageName)
         {
@@ -745,10 +761,54 @@ namespace Crosio.MsixAcceptance
                 result = manager.ActivateApplication(appId, null, 2, out processId);
                 Marshal.ThrowExceptionForHR(result);
                 if (processId == 0) { throw new InvalidOperationException("Activation returned no process ID."); }
-                candidate = System.Diagnostics.Process.GetProcessById(checked((int)processId));
-                IntPtr handle = candidate.Handle; // Retain exactly this process, protecting against PID reuse.
-                if (candidate.StartTime.ToUniversalTime() < activationStart.AddSeconds(-1) ||
-                    !String.Equals(Native.PackageFullName(handle), packageName, StringComparison.Ordinal))
+                returnedProcessId = checked((int)processId);
+                if (returnedProcessId == acceptedExistingProcessId)
+                {
+                    return;
+                }
+                try
+                {
+                    candidate = System.Diagnostics.Process.GetProcessById(checked((int)processId));
+                }
+                catch (ArgumentException)
+                {
+                    // A redirect-only secondary can finish before its Process
+                    // object is acquired. The original verified process must
+                    // still restore its window before the test can pass.
+                    if (acceptedExistingProcessId >= 0) { return; }
+                    throw;
+                }
+
+                IntPtr handle;
+                DateTime candidateStart;
+                string candidatePackage;
+                try
+                {
+                    handle = candidate.Handle; // Retain exactly this process, protecting against PID reuse.
+                    candidateStart = candidate.StartTime.ToUniversalTime();
+                    candidatePackage = Native.PackageFullName(handle);
+                }
+                catch
+                {
+                    bool candidateExited = false;
+                    try
+                    {
+                        candidate.Refresh();
+                        candidateExited = candidate.HasExited;
+                    }
+                    catch { candidateExited = true; }
+
+                    if (acceptedExistingProcessId >= 0 && candidateExited)
+                    {
+                        candidate.Dispose();
+                        candidate = null;
+                        return;
+                    }
+                    throw;
+                }
+
+                if (candidateStart < activationStart.AddSeconds(-1) ||
+                    !String.Equals(candidatePackage, packageName, StringComparison.Ordinal))
                 {
                     candidate.Dispose();
                     candidate = null;
@@ -816,6 +876,8 @@ namespace Crosio.MsixAcceptance
         { return new ActivationOperation(appId, packageName); }
         public static ActivationOperation Start(string appId, string packageName)
         { return StartCore(appId, packageName); }
+        public static ActivationOperation StartRedirect(string appId, string packageName, int existingProcessId)
+        { return new ActivationOperation(appId, packageName, existingProcessId); }
 
         [DllImport("ole32.dll")] internal static extern int CoInitializeEx(IntPtr reserved, uint flags);
         [DllImport("ole32.dll")] internal static extern void CoUninitialize();
@@ -956,10 +1018,14 @@ namespace Crosio.MsixAcceptance
 $installationAttempted = $false
 $installedPackageFullName = $null
 $activation = $null
+$reactivation = $null
 $failure = $null
 $cleanupFailures = [System.Collections.Generic.List[string]]::new()
 $activatedProcessId = $null
+$reactivationProcessId = $null
 $mainWindow = [IntPtr]::Zero
+$mainWindowAssessment = $null
+$lastMainWindowAssessment = $null
 $setupAttempts = [System.Collections.Generic.List[object]]::new()
 try {
     $installationAttempted = $true
@@ -1107,21 +1173,163 @@ try {
     if ($null -eq $startedProcess) { throw "Registered activation yielded no owned process." }
     $activatedProcessId = $startedProcess.Id
     $visibleSince = $null
+    $visibleHandle = [IntPtr]::Zero
     while ($launchWatch.Elapsed.TotalSeconds -lt $LaunchTimeoutSeconds) {
         $startedProcess.Refresh()
         if ($startedProcess.HasExited) { throw "Installed Crosio exited during startup. ExitCode=$($startedProcess.ExitCode)" }
         $candidate = [Crosio.MsixAcceptance.Native]::FindMainWindow($activatedProcessId)
         if ($candidate -ne [IntPtr]::Zero) {
-            if ($null -eq $visibleSince) { $visibleSince = $launchWatch.Elapsed }
-            if (($launchWatch.Elapsed - $visibleSince).TotalSeconds -ge 1) { $mainWindow = $candidate; break }
+            $candidateAssessment = Get-OnePawInteractiveWindowAssessment `
+                -WindowHandle $candidate `
+                -ExpectedHomeName $expectedHomeName
+            $lastMainWindowAssessment = $candidateAssessment
+            if ($candidateAssessment.Accepted) {
+                if ($null -eq $visibleSince -or $visibleHandle -ne $candidate) {
+                    $visibleSince = $launchWatch.Elapsed
+                    $visibleHandle = $candidate
+                }
+                if (($launchWatch.Elapsed - $visibleSince).TotalSeconds -ge 1) {
+                    $mainWindow = $candidate
+                    $mainWindowAssessment = $candidateAssessment
+                    break
+                }
+            }
+            else {
+                $visibleSince = $null
+                $visibleHandle = [IntPtr]::Zero
+            }
         }
-        else { $visibleSince = $null }
+        else {
+            $visibleSince = $null
+            $visibleHandle = [IntPtr]::Zero
+        }
         Start-Sleep -Milliseconds 150
     }
-    if ($mainWindow -eq [IntPtr]::Zero) { throw "Installed Crosio did not show a stable visible main window within $LaunchTimeoutSeconds seconds." }
+    if ($mainWindow -eq [IntPtr]::Zero) {
+        $assessmentDiagnostic = if ($null -eq $lastMainWindowAssessment) {
+            "<no titled visible window was inspected>"
+        }
+        else {
+            $lastMainWindowAssessment.Summary
+        }
+        throw (
+            "Installed Crosio did not show a stable, onscreen, restored and UIA-ready main window " +
+            "within $LaunchTimeoutSeconds seconds. LastAssessment=$assessmentDiagnostic"
+        )
+    }
+
+    # Reproduce the resident-app path that a user's second Start-menu launch
+    # takes. Hide the exact verified primary window, activate the same AUMID
+    # again, and require the original process to restore a usable main window.
+    if (-not [Crosio.WindowAcceptance.NativeWindow]::HideWindow($mainWindow)) {
+        throw "ShowWindow(SW_HIDE) reported that the verified main window was not previously visible."
+    }
+    $hideDeadline = [DateTime]::UtcNow.AddSeconds(5)
+    do {
+        $hiddenState = [Crosio.WindowAcceptance.NativeWindow]::Inspect($mainWindow)
+        if (-not $hiddenState.Visible) { break }
+        Start-Sleep -Milliseconds 100
+    }
+    while ([DateTime]::UtcNow -lt $hideDeadline)
+    if ($hiddenState.Visible) {
+        throw "The verified main window did not become hidden before redirected activation."
+    }
+
+    $startedProcess.Refresh()
+    if ($startedProcess.HasExited) {
+        throw "Installed Crosio exited while its main window was hidden. ExitCode=$($startedProcess.ExitCode)"
+    }
+
+    Write-Host "Main window hidden. Reactivating registered AUMID while PID $activatedProcessId remains resident."
+    $reactivation = [Crosio.MsixAcceptance.Native]::StartRedirect(
+        $aumid,
+        $installedPackageFullName,
+        $activatedProcessId)
+    if (-not $reactivation.Wait($LaunchTimeoutSeconds * 1000)) {
+        throw "Redirected package activation exceeded $LaunchTimeoutSeconds seconds."
+    }
+    if ($null -ne $reactivation.Error) { throw $reactivation.Error }
+    $reactivationProcessId = $reactivation.ReturnedProcessId
+    $reactivationWatch = [System.Diagnostics.Stopwatch]::StartNew()
+
+    $restoredWindow = [IntPtr]::Zero
+    $restoredAssessment = $null
+    $restoredSince = $null
+    $restoredHandle = [IntPtr]::Zero
+    $lastRestoredAssessment = $null
+    while ($reactivationWatch.Elapsed.TotalSeconds -lt $LaunchTimeoutSeconds) {
+        $startedProcess.Refresh()
+        if ($startedProcess.HasExited) {
+            throw "The original installed Crosio process exited during redirected activation. ExitCode=$($startedProcess.ExitCode)"
+        }
+
+        $candidate = [Crosio.MsixAcceptance.Native]::FindMainWindow($activatedProcessId)
+        if ($candidate -ne [IntPtr]::Zero) {
+            $candidateAssessment = Get-OnePawInteractiveWindowAssessment `
+                -WindowHandle $candidate `
+                -ExpectedHomeName $expectedHomeName
+            $lastRestoredAssessment = $candidateAssessment
+            if ($candidateAssessment.Accepted) {
+                if ($null -eq $restoredSince -or $restoredHandle -ne $candidate) {
+                    $restoredSince = $reactivationWatch.Elapsed
+                    $restoredHandle = $candidate
+                }
+                if (($reactivationWatch.Elapsed - $restoredSince).TotalSeconds -ge 1) {
+                    $restoredWindow = $candidate
+                    $restoredAssessment = $candidateAssessment
+                    break
+                }
+            }
+            else {
+                $restoredSince = $null
+                $restoredHandle = [IntPtr]::Zero
+            }
+        }
+        else {
+            $restoredSince = $null
+            $restoredHandle = [IntPtr]::Zero
+        }
+        Start-Sleep -Milliseconds 150
+    }
+
+    if ($restoredWindow -eq [IntPtr]::Zero) {
+        $assessmentDiagnostic = if ($null -eq $lastRestoredAssessment) {
+            "<the original process exposed no titled visible window>"
+        }
+        else {
+            $lastRestoredAssessment.Summary
+        }
+        throw (
+            "Redirected activation did not restore an onscreen, UIA-ready main window in the original process " +
+            "within $LaunchTimeoutSeconds seconds. ReturnedPID=$reactivationProcessId; " +
+            "LastAssessment=$assessmentDiagnostic"
+        )
+    }
+
+    $redirectProcess = $reactivation.Process
+    if ($null -ne $redirectProcess) {
+        if (-not $redirectProcess.WaitForExit(5000)) {
+            throw "The redirect-only activation process remained active after restoring the primary window. PID=$($redirectProcess.Id)"
+        }
+        if ($redirectProcess.ExitCode -ne 0) {
+            throw "The redirect-only activation process exited with code $($redirectProcess.ExitCode). PID=$($redirectProcess.Id)"
+        }
+    }
+
+    $mainWindow = $restoredWindow
+    $mainWindowAssessment = $restoredAssessment
+    Write-Host (
+        "Resident-process reactivation restored the main window. " +
+        "PrimaryPID=$activatedProcessId; ActivationPID=$reactivationProcessId; HWND=$mainWindow; " +
+        $mainWindowAssessment.Summary
+    )
 }
 catch { $failure = $_.Exception }
 finally {
+    if ($null -ne $reactivation) {
+        try { $reactivation.Stop() }
+        catch { $cleanupFailures.Add("Redirect activation process cleanup: $($_.Exception.Message)") }
+    }
     if ($null -ne $activation) {
         try { $activation.Stop() }
         catch { $cleanupFailures.Add("Process cleanup: $($_.Exception.Message)") }
@@ -1180,4 +1388,8 @@ if ($null -ne $failure -or $cleanupFailures.Count -gt 0) {
     throw "Windows 11 ARM64 MSIX acceptance failed: $($messages -join ' | ')"
 }
 $installerMode = if ($UseSetup) { "Setup.exe GUI" } else { "direct MSIX" }
-Write-Host "Windows 11 ARM64 $installerMode acceptance passed: Version=$expectedVersion; Package=$installedPackageFullName; PID=$activatedProcessId; HWND=$mainWindow. Test process stopped and test package removed."
+Write-Host (
+    "Windows 11 ARM64 $installerMode acceptance passed: Version=$expectedVersion; " +
+    "Package=$installedPackageFullName; PID=$activatedProcessId; ReactivationPID=$reactivationProcessId; " +
+    "HWND=$mainWindow; $($mainWindowAssessment.Summary). Test processes stopped and test package removed."
+)
