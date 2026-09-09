@@ -712,10 +712,11 @@ struct PinnedScreenshotFeatureTests {
 
     @Test("Temporarily hidden windows restore pins in a separate idempotent batch")
     func temporarilyHiddenWindowsRestorePinsSeparately() {
+        let app = NSApplication.shared
         // This suite is serialized because the production helper intentionally
         // snapshots and orders NSApp's visible windows. Preserve any pre-existing
         // test-host windows as an additional cleanup boundary.
-        let preexistingVisibleWindows = NSApp.windows.filter(\.isVisible)
+        let preexistingVisibleWindows = app.windows.filter(\.isVisible)
         for window in preexistingVisibleWindows {
             window.orderOut(nil)
         }
@@ -726,6 +727,10 @@ struct PinnedScreenshotFeatureTests {
             backing: .buffered,
             defer: false
         )
+        // The fixture owns this plain NSWindow through ARC, including after
+        // close(); AppKit must not independently release it on close.
+        mainWindow.isReleasedWhenClosed = false
+        #expect(!mainWindow.isReleasedWhenClosed)
         let firstPin = PinnedScreenshotPanel(
             contentRect: CGRect(x: 560, y: 180, width: 240, height: 120),
             sourcePixelSize: CGSize(width: 400, height: 200),
