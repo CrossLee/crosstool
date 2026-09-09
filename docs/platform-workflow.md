@@ -2,6 +2,8 @@
 
 从本次合并起，macOS 与 Windows 统一在 `main` 维护。`codex/windows-native-preview` 保留历史提交，不再作为 Windows 当前源码或发行入口；日常功能使用短期分支，经测试和审查后合回 `main`。
 
+本次代码完整性、测试、构建和云端运行凭据见[主干合并验证记录](platform-merge-verification.md)。
+
 ## 目录与共享边界
 
 | 内容 | 位置 |
