@@ -32,7 +32,13 @@
 
 更名源码提交：[`58b582504b5d504d058533d9f335a824c8df63a6`](https://github.com/CrossLee/onepaw/commit/58b582504b5d504d058533d9f335a824c8df63a6)。
 
-[Windows CI #21](https://github.com/CrossLee/onepaw/actions/runs/34332562611) 正在执行 x64/ARM64 构建、测试及 ARM64 安装检查，最终结果以该运行完成状态为准。它不满足 `Publish Windows preview` 提交标题门槛，不会自动公开 Release。Windows 可信签名未完成。
+[Windows CI #21](https://github.com/CrossLee/onepaw/actions/runs/34332562611) 已完成，结果为成功：工具准备、Windows 构建验证、Windows 11 ARM64 安装三个 job 全部通过；`publish-preview` 明确跳过，没有公开 Release。
+
+- 正式 Windows CI 的 9 组自动测试共 **293 passed / 0 failed / 0 skipped**。这是 Windows 环境结果，不复用 Mac 上可运行子集的计数。
+- x64 在托管 Windows Server 环境启动 smoke 通过，主窗口精确标题为“一爪”；不称为 x64 Windows 11 实机安装验收。
+- Windows 11 ARM64 托管环境完成中文安装器首次安装及同版本重复安装。安装器标题“一爪 安装”、已安装显示名、登录项显示名及主窗口中文标题均通过检查；包身份和 AUMID 保持兼容。
+- 新生成的安装器为 `一爪-Windows-0.1.21.0-Setup.exe`，CI 报告 267,192,443 字节，SHA-256 为 `499d1114d00ef44963e345b8a5b59d1f7679283d2e9838ce393931cf61a17d8c`。独立读取了该运行 artifact 的精确文件目录、哈希清单和构建元数据，没有回下载整个 EXE 重算其哈希。
+- Windows 可信签名未完成。托管环境中的安装与自动测试不等于所有功能已完成用户设备验收。
 
 ## 尚未包含的验收
 
