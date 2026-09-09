@@ -4,10 +4,10 @@ Crosio 是一款本地优先的原生 macOS 工具箱，集截图与标注、图
 
 ## 下载
 
-- [DMG 安装包（推荐）](https://github.com/CrossLee/crosstool/releases/download/v0.6.2/Crosio-0.6.2-macos-universal2.dmg)
-- [PKG 安装包](https://github.com/CrossLee/crosstool/releases/download/v0.6.2/Crosio-0.6.2-macos-universal2.pkg)
-- [ZIP 备用包](https://github.com/CrossLee/crosstool/releases/download/v0.6.2/Crosio-0.6.2-macos-universal2.zip)
-- [v0.6.2 发布说明与 SHA-256 校验](https://github.com/CrossLee/crosstool/releases/tag/v0.6.2)
+- [DMG 安装包（推荐）](https://github.com/CrossLee/crosstool/releases/download/v0.6.5/Crosio-0.6.5-macos-universal2.dmg)
+- [PKG 安装包](https://github.com/CrossLee/crosstool/releases/download/v0.6.5/Crosio-0.6.5-macos-universal2.pkg)
+- [ZIP 备用包](https://github.com/CrossLee/crosstool/releases/download/v0.6.5/Crosio-0.6.5-macos-universal2.zip)
+- [v0.6.5 发布说明与 SHA-256 校验](https://github.com/CrossLee/crosstool/releases/tag/v0.6.5)
 
 > 只想安装 Crosio 时，请下载文件名以 `Crosio-` 开头的 DMG、PKG 或 ZIP。GitHub 自动生成的“Source code”压缩包不是可直接运行的安装包。
 
@@ -32,6 +32,16 @@ Crosio 是一款本地优先的原生 macOS 工具箱，集截图与标注、图
 - 可在设置中开启或关闭“登录时自动启动 Crosio”
 - 课堂局域网公共共享盘：浏览器查看、下载、上传文件和发送文字
 - 菜单栏常驻，运行时不占用 Dock 或 `Command+Tab`；需要时可从菜单栏重新打开主窗口
+
+## 一爪 OnePaw 新图标
+
+v0.6.5 使用已确认的「猫咪伸爪」拟物图标：柔软毛发、粉色肉垫和橙色立体边框。品牌口号为“电脑小事，一爪搞定”。本次仅更换产品图标，安装实体仍为 `Crosio.app`；保留现有权限标识、快捷键、数据路径和升级兼容性。
+
+## Finder 复制路径
+
+选中文件或文件夹，右键选择“服务 → 复制路径”。支持多选，按 Finder 提供的顺序每行复制一个完整路径；保留中文、空格等原始字符，不转换成 URL 或命令行转义格式。该操作在后台完成，不打开 Crosio 主界面；全程本地，不读取、修改或上传文件内容，也不触发图片压缩。
+
+v0.6.5 已包含此功能。安装并打开一次后，macOS 才能注册该服务；若入口未显示，可在系统的键盘快捷键“服务”设置中检查“复制路径”是否启用。它位于“服务”子菜单，不是“打开方式”。
 
 ## 安装
 

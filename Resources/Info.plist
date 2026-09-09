@@ -34,9 +34,9 @@
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>0.6.2</string>
+    <string>0.6.5</string>
     <key>CFBundleVersion</key>
-    <string>43</string>
+    <string>46</string>
     <key>LSUIElement</key>
     <true/>
     <key>LSMinimumSystemVersion</key>
@@ -47,6 +47,34 @@
     <string>Crosio 需要在当前局域网中提供文件和文字的浏览器收发服务。</string>
     <key>NSScreenCaptureUsageDescription</key>
     <string>Crosio 需要读取你选择的屏幕或窗口，用于截图、录屏、实时提取屏幕颜色，并在你开启时录制系统声音。</string>
+    <key>NSServices</key>
+    <array>
+        <dict>
+            <key>NSMenuItem</key>
+            <dict>
+                <key>default</key>
+                <string>复制路径</string>
+            </dict>
+            <key>NSMessage</key>
+            <string>copyPaths</string>
+            <key>NSPortName</key>
+            <string>Crosio</string>
+            <key>NSSendTypes</key>
+            <array>
+                <string>public.file-url</string>
+                <string>NSFilenamesPboardType</string>
+            </array>
+            <key>NSSendFileTypes</key>
+            <array>
+                <string>public.item</string>
+            </array>
+            <key>NSRequiredContext</key>
+            <dict>
+                <key>NSApplicationIdentifier</key>
+                <string>com.apple.finder</string>
+            </dict>
+        </dict>
+    </array>
     <key>NSAppTransportSecurity</key>
     <dict>
         <key>NSAllowsLocalNetworking</key>

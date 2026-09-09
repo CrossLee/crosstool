@@ -1,9 +1,33 @@
+import AppKit
 import Foundation
 @testable import CrossToolApp
 import Testing
 
 @Suite("Application bundle configuration")
 struct ApplicationBundleConfigurationTests {
+    @Test("The approved OnePaw artwork is packaged as a multi-resolution application icon")
+    func sourceAppIconContainsDesktopAndRetinaSizes() throws {
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let info = try sourceInfoPlist()
+        #expect(info["CFBundleIconFile"] as? String == "AppIcon.icns")
+        #expect(info["CFBundleIdentifier"] as? String == "com.cross.crosstool")
+
+        let artworkData = try Data(contentsOf: root
+            .appendingPathComponent("Resources/Brand/OnePaw-AppIcon.png"))
+        let artwork = try #require(NSBitmapImageRep(data: artworkData))
+        #expect(artwork.pixelsWide == artwork.pixelsHigh)
+        #expect(artwork.pixelsWide >= 1024)
+
+        let icon = try #require(NSImage(contentsOf: root
+            .appendingPathComponent("Resources/AppIcon.icns")))
+        let sizes = Set(icon.representations.map(\.pixelsWide))
+        #expect(Set([16, 32, 64, 128, 256, 512, 1024]).isSubset(of: sizes))
+        #expect(icon.representations.allSatisfy { $0.pixelsWide == $0.pixelsHigh })
+    }
+
     @Test("Crosio is a UI-element app without becoming background-only")
     func sourceInfoPlistUsesUIElementPresentation() throws {
         let projectRoot = URL(fileURLWithPath: #filePath)
@@ -60,6 +84,48 @@ struct ApplicationBundleConfigurationTests {
         broker.receive([remote])
 
         #expect(deliveries == [[first, second], [third]])
+    }
+
+    @Test("Only a normal app launch requests the main window")
+    func launchPolicyKeepsServicesAndLoginItemsInTheBackground() {
+        #expect(ApplicationLaunchPolicy.shouldPresentMainWindow(isDefaultLaunch: true))
+        #expect(!ApplicationLaunchPolicy.shouldPresentMainWindow(isDefaultLaunch: false))
+        #expect(!ApplicationLaunchPolicy.shouldPresentMainWindow(isDefaultLaunch: nil))
+    }
+
+    @MainActor
+    @Test("A cold-launch main-window request waits for the app model")
+    func mainWindowBrokerQueuesAndCoalescesColdLaunchRequests() {
+        let broker = MainWindowOpenRequestBroker()
+        var deliveries = 0
+
+        broker.receive()
+        broker.receive()
+        #expect(deliveries == 0)
+
+        broker.install { deliveries += 1 }
+        #expect(deliveries == 1)
+
+        broker.receive()
+        #expect(deliveries == 2)
+    }
+
+    @Test("Finder copy-path service accepts files and folders without replacing the selection")
+    func sourceInfoPlistRegistersCopyPathService() throws {
+        let info = try sourceInfoPlist()
+        let services = try #require(info["NSServices"] as? [[String: Any]])
+        #expect(services.count == 1)
+        let service = try #require(services.first)
+        let title = try #require(service["NSMenuItem"] as? [String: String])
+        #expect(title["default"] == "复制路径")
+        #expect(service["NSMessage"] as? String == "copyPaths")
+        #expect(service["NSPortName"] as? String == info["CFBundleName"] as? String)
+        #expect(service["NSSendTypes"] as? [String] == ["public.file-url", "NSFilenamesPboardType"])
+        #expect(service["NSSendFileTypes"] as? [String] == ["public.item"])
+        let context = try #require(service["NSRequiredContext"] as? [String: String])
+        #expect(context["NSApplicationIdentifier"] == "com.apple.finder")
+        #expect(service["NSReturnTypes"] == nil)
+        #expect(service["NSKeyEquivalent"] == nil)
     }
 
     private func sourceInfoPlist() throws -> [String: Any] {

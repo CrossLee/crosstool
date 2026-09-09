@@ -16,7 +16,6 @@ enum MenuBarPanelLayout {
 
 struct MenuBarPanelView: View {
     @EnvironmentObject private var model: AppModel
-    @Environment(\.openWindow) private var openWindow
     @State private var showingImporter = false
     @State private var showingTextSheet = false
 
@@ -131,8 +130,7 @@ struct MenuBarPanelView: View {
     }
 
     private func openMainWindow() {
-        openWindow(id: "main")
-        NSApp.activate(ignoringOtherApps: true)
+        model.presentMainWindow()
     }
 
     @ViewBuilder

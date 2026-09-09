@@ -547,6 +547,14 @@ private struct SettingsPage: View {
     var body: some View {
         Form {
             LoginItemSettingsSection(model: loginItemSettings)
+            Section("Finder 右键服务") {
+                LabeledContent("操作", value: "服务 → 复制路径")
+                Text("在 Finder 中选中文件或文件夹，右键选择“服务 → 复制路径”。支持多选，每行一个完整路径；仅复制路径，不读取或修改文件内容。")
+                    .foregroundStyle(.secondary)
+                Text("请将 Crosio 安装到“应用程序”并打开一次。若菜单未显示，请在 macOS 的键盘快捷键“服务”设置中检查是否已启用“复制路径”。")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
             Section("共享服务") {
                 LabeledContent("默认端口", value: String(model.port))
                 LabeledContent("传输范围", value: "当前局域网")

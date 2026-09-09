@@ -6,24 +6,16 @@ struct CrossToolApp: App {
     @NSApplicationDelegateAdaptor(CrosioApplicationDelegate.self)
     private var appDelegate
     @StateObject private var model = AppModel()
+    @StateObject private var mainWindowPresenter = MainWindowPresenter()
 
     var body: some Scene {
-        Window("Crosio", id: "main") {
-            MainWindowView()
-                .environmentObject(model)
-                .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
-                    model.refreshScreenCapturePermission()
-                }
-        }
-        .defaultSize(width: 1_180, height: 780)
-        .windowResizability(.contentMinSize)
-
         MenuBarExtra {
             MenuBarPanelView()
                 .environmentObject(model)
         } label: {
             MenuBarStatusLabel(
-                model: model
+                model: model,
+                mainWindowPresenter: mainWindowPresenter
             )
         }
         .menuBarExtraStyle(.window)
@@ -31,9 +23,8 @@ struct CrossToolApp: App {
 }
 
 private struct MenuBarStatusLabel: View {
-    @Environment(\.openWindow) private var openWindow
-    @Environment(\.dismissWindow) private var dismissWindow
     @ObservedObject var model: AppModel
+    let mainWindowPresenter: MainWindowPresenter
 
     var body: some View {
         Label(
@@ -50,13 +41,59 @@ private struct MenuBarStatusLabel: View {
         }
         .onChange(of: model.mainWindowDismissRequestID) { _, requestID in
             guard requestID > 0 else { return }
-            dismissWindow(id: "main")
+            mainWindowPresenter.dismiss()
         }
     }
 
     private func openMainWindowIfNeeded(for requestID: Int) {
         guard model.claimMainWindowOpenRequest(requestID) else { return }
-        openWindow(id: "main")
+        mainWindowPresenter.present(model: model)
+    }
+}
+
+@MainActor
+final class MainWindowPresenter: ObservableObject {
+    private var windowController: NSWindowController?
+
+    func present(model: AppModel) {
+        let controller: NSWindowController
+        if let windowController {
+            controller = windowController
+        } else {
+            controller = makeWindowController(model: model)
+            windowController = controller
+        }
+
         NSApp.activate(ignoringOtherApps: true)
+        controller.window?.deminiaturize(nil)
+        controller.showWindow(nil)
+        controller.window?.makeKeyAndOrderFront(nil)
+    }
+
+    func dismiss() {
+        windowController?.close()
+    }
+
+    private func makeWindowController(model: AppModel) -> NSWindowController {
+        let rootView = MainWindowView()
+            .environmentObject(model)
+            .onReceive(
+                NotificationCenter.default.publisher(
+                    for: NSApplication.didBecomeActiveNotification
+                )
+            ) { _ in
+                model.refreshScreenCapturePermission()
+            }
+        let hostingController = NSHostingController(rootView: rootView)
+        let window = NSWindow(contentViewController: hostingController)
+        window.title = "Crosio"
+        window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
+        window.setContentSize(NSSize(width: 1_180, height: 780))
+        window.contentMinSize = NSSize(width: 1_000, height: 620)
+        window.isReleasedWhenClosed = false
+        window.isRestorable = false
+        window.tabbingMode = .disallowed
+        window.center()
+        return NSWindowController(window: window)
     }
 }

@@ -78,6 +78,9 @@ final class AppModel: ObservableObject {
         self.screenshotDraftsDirectory = directories.drafts
         self.globalShortcuts = shortcutLoadResult.shortcuts
         CrosioApplicationDelegate.recordingModel = screenRecording
+        CrosioApplicationDelegate.mainWindowOpenRequestBroker.install { [weak self] in
+            self?.presentMainWindow()
+        }
         CrosioApplicationDelegate.imageOpenRequestBroker.install { [weak self] urls in
             self?.presentImageCompression(importing: urls)
         }
@@ -248,17 +251,21 @@ final class AppModel: ObservableObject {
     func presentTextTranslation() {
         textTranslationLaunchRequest = nil
         selectedDestination = .translation
-        mainWindowOpenRequestID &+= 1
+        presentMainWindow()
     }
 
     func presentImageCompression() {
         selectedDestination = .imageCompression
-        mainWindowOpenRequestID &+= 1
+        presentMainWindow()
     }
 
     func presentImageCompression(importing urls: [URL]) {
         presentImageCompression()
         imageCompression.addImagesFromExternalOpen(urls)
+    }
+
+    func presentMainWindow() {
+        mainWindowOpenRequestID &+= 1
     }
 
     func claimMainWindowOpenRequest(_ requestID: Int) -> Bool {
@@ -306,7 +313,7 @@ final class AppModel: ObservableObject {
 
             textTranslationLaunchRequest = TextTranslationLaunchRequest(payload: payload)
             selectedDestination = .translation
-            mainWindowOpenRequestID &+= 1
+            presentMainWindow()
             selectedTextTranslationTask = nil
         }
     }
@@ -725,9 +732,9 @@ final class AppModel: ObservableObject {
                 notice = "截图已自动复制到剪贴板，可以继续标注或直接粘贴"
             }
             if controller.show() {
-                // orderOut keeps a SwiftUI Window scene alive, so AppKit may
-                // order it front again when the editor closes. Ask SwiftUI to
-                // dismiss that exact scene after the editor has replaced it.
+                // The editor replaces the main window for this interaction.
+                // Close the retained main window after it has been ordered out
+                // so dismissing the editor cannot reveal it underneath.
                 mainWindowDismissRequestID &+= 1
             }
         } catch {
