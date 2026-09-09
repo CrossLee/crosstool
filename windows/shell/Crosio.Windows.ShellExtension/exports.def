@@ -1,0 +1,4 @@
+LIBRARY "Crosio.Windows.ShellExtension"
+EXPORTS
+    DllCanUnloadNow PRIVATE
+    DllGetClassObject PRIVATE

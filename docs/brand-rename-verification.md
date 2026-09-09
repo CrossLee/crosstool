@@ -40,7 +40,7 @@
 - 新生成的安装器为 `一爪-Windows-0.1.21.0-Setup.exe`，CI 报告 267,192,443 字节，SHA-256 为 `499d1114d00ef44963e345b8a5b59d1f7679283d2e9838ce393931cf61a17d8c`。独立读取了该运行 artifact 的精确文件目录、哈希清单和构建元数据，没有回下载整个 EXE 重算其哈希。
 - Windows 可信签名未完成。托管环境中的安装与自动测试不等于所有功能已完成用户设备验收。
 
-构建仍含原有 `MSB3851` 目标 SDK 警告，相关配置未在更名中修改；不宣称 Windows 零警告或最低系统版本已全面验收。各测试组、图形安装步骤、产物与原始日志凭据见 [Windows 详细验证报告](https://github.com/CrossLee/onepaw/blob/codex/windows-native-preview/docs/windows-brand-rename-verification.md)。
+构建仍含原有 `MSB3851` 目标 SDK 警告，相关配置未在更名中修改；不宣称 Windows 零警告或最低系统版本已全面验收。各测试组、图形安装步骤、产物与原始日志凭据见 [Windows 详细验证报告](windows-brand-rename-verification.md)。
 
 ## 尚未包含的验收
 

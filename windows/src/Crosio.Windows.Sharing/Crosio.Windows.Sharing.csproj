@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <RootNamespace>Crosio.Windows.Sharing</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="../../../Sources/CrossToolApp/Resources/Web/index.html"
+                      LogicalName="Crosio.Windows.Sharing.Web.index.html" />
+    <EmbeddedResource Include="../../../Sources/CrossToolApp/Resources/Web/app.css"
+                      LogicalName="Crosio.Windows.Sharing.Web.app.css" />
+    <EmbeddedResource Include="../../../Sources/CrossToolApp/Resources/Web/app.js"
+                      LogicalName="Crosio.Windows.Sharing.Web.app.js" />
+  </ItemGroup>
+</Project>

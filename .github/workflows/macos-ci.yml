@@ -1,0 +1,73 @@
+name: macOS CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'Package.swift'
+      - 'Package.resolved'
+      - 'Sources/**'
+      - 'Tests/**'
+      - 'Resources/**'
+      - 'scripts/**'
+      - '.github/workflows/macos-ci.yml'
+  pull_request:
+    paths:
+      - 'Package.swift'
+      - 'Package.resolved'
+      - 'Sources/**'
+      - 'Tests/**'
+      - 'Resources/**'
+      - 'scripts/**'
+      - '.github/workflows/macos-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: macos-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify-macos:
+    name: macOS regression and development build
+    runs-on: macos-15
+    timeout-minutes: 30
+    env:
+      # The macOS 15 runner includes Xcode 16.4 / Swift 6.1 and the 15.5 SDK.
+      # https://github.com/actions/runner-images/blob/main/images/macos/macos-15-Readme.md
+      DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+      CROSSTOOL_CODESIGN_IDENTITY: '-'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+          node --version
+      - name: Test regression runner guards
+        run: node --test scripts/test-macos-runner.test.mjs
+      - name: Run every discovered macOS test in verified isolated groups
+        run: bash scripts/test-macos.sh
+      - name: Test installer migration in isolated fixtures
+        run: bash scripts/test-installer-migration.sh
+      - name: Strict release compile
+        run: swift build -c release -Xswiftc -strict-concurrency=complete -Xswiftc -warnings-as-errors
+      - name: Build and verify ad-hoc development app (no launch or install)
+        run: bash scripts/build-app.sh
+      - name: Retain test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-test-evidence-${{ github.run_id }}
+          path: |
+            .build/macos-regression-*/
+            .build/onepaw-migration-tests.*/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 14
+      # No Release job and no signing/notarization credentials in this workflow.

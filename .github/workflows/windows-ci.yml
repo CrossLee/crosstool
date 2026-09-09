@@ -1,0 +1,423 @@
+name: Windows
+
+on:
+  push:
+    paths:
+      - "windows/**"
+      - "Sources/CrossToolApp/Resources/Web/**"
+      - "Resources/Brand/CrosioIcon.png"
+      - "Resources/Brand/OnePaw-AppIcon.png"
+      - ".github/workflows/windows-ci.yml"
+  pull_request:
+    paths:
+      - "windows/**"
+      - "Sources/CrossToolApp/Resources/Web/**"
+      - "Resources/Brand/CrosioIcon.png"
+      - "Resources/Brand/OnePaw-AppIcon.png"
+      - ".github/workflows/windows-ci.yml"
+  workflow_dispatch:
+    inputs:
+      publish_preview:
+        description: "Publish an unsigned Windows preview after all checks (main only)"
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  prepare-installer-tool:
+    # SourceForge may serve an HTML interstitial to Windows hosted runners.
+    # Fetch on Linux, pin the original release bytes, and transfer only through
+    # this run's artifact. build-setup.ps1 independently verifies the same pin.
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Download and verify the official NSIS compiler
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          mkdir -p "$RUNNER_TEMP/crosio-nsis"
+          tool_path="$RUNNER_TEMP/crosio-nsis/nsis-3.12-setup.exe"
+          expected_hash="3bc2b06253a7e4957111be152ac6a536e0c7478a706e19da814038db5d706495"
+          urls=(
+            "https://sourceforge.net/projects/nsis/files/NSIS%203/3.12/nsis-3.12-setup.exe/download"
+            "https://downloads.sourceforge.net/project/nsis/NSIS%203/3.12/nsis-3.12-setup.exe"
+          )
+          verified=false
+          for url in "${urls[@]}"; do
+            if curl --fail --location --proto '=https' --proto-redir '=https' --max-time 60 --retry 1 --output "$tool_path" "$url"; then
+              actual_hash="$(sha256sum "$tool_path" | cut -d ' ' -f 1)"
+              actual_size="$(stat -c %s "$tool_path")"
+              if [[ "$actual_hash" == "$expected_hash" && "$actual_size" == 1566914 ]]; then
+                verified=true
+                break
+              fi
+              echo "Rejected compiler download: SHA256=$actual_hash; bytes=$actual_size" >&2
+            fi
+          done
+          if [[ "$verified" != true ]]; then
+            echo "No official compiler download matched the pinned release bytes." >&2
+            exit 1
+          fi
+          echo "Verified original NSIS 3.12 compiler bytes."
+
+      - name: Transfer the verified compiler to this run
+        uses: actions/upload-artifact@v4
+        with:
+          name: 一爪-nsis-3.12-build-tool
+          path: ${{ runner.temp }}/crosio-nsis/nsis-3.12-setup.exe
+          if-no-files-found: error
+          retention-days: 1
+
+  verify-windows:
+    needs: prepare-installer-tool
+    # Pin VS 2022 because the native extension targets MSVC v143 for both x64
+    # and ARM64; the newer VS 2026 image does not include v143 ARM64 tools.
+    runs-on: windows-2022
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: windows
+    outputs:
+      package_version: ${{ steps.package_version.outputs.version }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Node.js for workflow policy checks
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Verify Windows workflow safety policy
+        shell: pwsh
+        run: node .\scripts\test-windows-workflow.mjs
+
+      - name: Install .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Add MSBuild to PATH
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Download the pinned compiler from this run
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: 一爪-nsis-3.12-build-tool
+          path: windows/artifacts/tools
+
+      - name: Run Windows verification
+        shell: pwsh
+        run: .\scripts\verify-windows.ps1 -Configuration Release -Platform x64
+
+      - name: Upload unpackaged test build
+        uses: actions/upload-artifact@v4
+        with:
+          name: 一爪-windows-x64-test-build
+          path: windows/artifacts/publish/win-x64/**
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Choose package version
+        id: package_version
+        shell: node {0}
+        run: |
+          const rawBuild = process.env.GITHUB_RUN_NUMBER;
+          if (!/^[1-9][0-9]*$/.test(rawBuild ?? '')) {
+            throw new Error('The workflow run number must be a positive decimal integer.');
+          }
+          const build = Number(rawBuild);
+          if (!Number.isSafeInteger(build) || build > 65535) {
+            throw new Error('The MSIX build field is exhausted; choose a new version series instead of wrapping.');
+          }
+          require('node:fs').appendFileSync(process.env.GITHUB_OUTPUT, `version=0.1.${build}.0\n`);
+
+      # CI and this explicit preview workflow never consume signing secrets.
+      # Trusted signing remains a separate, reviewed release configuration.
+      - name: Build unsigned x64 and ARM64 MSIX bundle
+        shell: pwsh
+        run: >-
+          .\scripts\build-msixbundle.ps1
+          -Configuration Release
+          -Version "${{ steps.package_version.outputs.version }}"
+
+      - name: Build the Chinese graphical Setup installer
+        shell: pwsh
+        run: >-
+          .\scripts\build-setup.ps1
+          -Version "${{ steps.package_version.outputs.version }}"
+          -AllowUnsignedTestPackage
+          -RequirePreparedNsis
+
+      - name: Upload unsigned test MSIX packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: 一爪-windows-${{ steps.package_version.outputs.version }}-unsigned-test
+          path: windows/artifacts/release/**
+          if-no-files-found: error
+          retention-days: 14
+
+  install-windows11-arm64:
+    needs: verify-windows
+    runs-on: windows-11-arm
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download the MSIX test bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: 一爪-windows-${{ needs.verify-windows.outputs.package_version }}-unsigned-test
+          path: windows/artifacts/install-test
+
+      - name: Click through Setup and launch the installed Windows 11 ARM64 app
+        shell: powershell
+        run: .\windows\scripts\Test-MsixInstallation.ps1 -PackageDirectory .\windows\artifacts\install-test -UseSetup
+
+  publish-preview:
+    needs:
+      - verify-windows
+      - install-windows11-arm64
+    if: >-
+      ${{
+        needs.verify-windows.result == 'success' &&
+        needs.install-windows11-arm64.result == 'success' &&
+        github.event_name == 'workflow_dispatch' &&
+        github.ref == 'refs/heads/main' &&
+        inputs.publish_preview == true
+      }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      RELEASE_VERSION: ${{ needs.verify-windows.outputs.package_version }}
+      RELEASE_TARGET_SHA: ${{ github.sha }}
+
+    steps:
+      - name: Checkout the exact verified commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Download this run's unsigned release artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: 一爪-windows-${{ needs.verify-windows.outputs.package_version }}-unsigned-test
+          path: windows/artifacts/preview-source
+
+      - name: Assemble and validate the user preview assets
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          export LC_ALL=C
+
+          version="$RELEASE_VERSION"
+          target_sha="$RELEASE_TARGET_SHA"
+          source_dir="$GITHUB_WORKSPACE/windows/artifacts/preview-source"
+          notes_file="$GITHUB_WORKSPACE/windows/release/WINDOWS_PREVIEW_NOTES.zh-CN.md"
+
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid package version from verify-windows: $version" >&2
+            exit 1
+          fi
+          if [[ ! "$target_sha" =~ ^([0-9a-f]{40}|[0-9a-f]{64})$ ]]; then
+            echo "Invalid release target SHA: $target_sha" >&2
+            exit 1
+          fi
+          if [[ ! -f "$notes_file" ]]; then
+            echo "Missing Windows preview release notes: $notes_file" >&2
+            exit 1
+          fi
+
+          bundle_name="一爪-Windows-${version}-unsigned-test.msixbundle"
+          x64_name="一爪-Windows-${version}-x64-unsigned-test.msix"
+          arm64_name="一爪-Windows-${version}-arm64-unsigned-test.msix"
+          setup_name="一爪-Windows-${version}-Setup.exe"
+          release_tag="windows-v${version}-preview"
+
+          preview_root="$(mktemp -d "$RUNNER_TEMP/crosio-preview.XXXXXX")"
+          asset_dir="$preview_root/assets"
+          mkdir -p "$asset_dir"
+
+          expected_source_names=(
+            "$arm64_name"
+            "$bundle_name"
+            "$x64_name"
+            "$setup_name"
+            "安装一爪.ps1"
+            "SHA256SUMS.txt"
+            "TESTING.md"
+            "THIRD_PARTY_NOTICES.md"
+            "build-info.json"
+          )
+          mapfile -d '' source_entries < <(find "$source_dir" -mindepth 1 -maxdepth 1 -print0)
+          if (( ${#source_entries[@]} != ${#expected_source_names[@]} )); then
+            echo "Expected exactly ${#expected_source_names[@]} files in the release artifact; found ${#source_entries[@]}." >&2
+            exit 1
+          fi
+          for entry in "${source_entries[@]}"; do
+            if [[ ! -f "$entry" || -L "$entry" ]]; then
+              echo "Release artifact contains a non-regular file or symlink: $entry" >&2
+              exit 1
+            fi
+          done
+
+          printf '%s\n' "${expected_source_names[@]}" | sort > "$preview_root/expected-source-files.txt"
+          find "$source_dir" -mindepth 1 -maxdepth 1 -type f -printf '%f\n' | sort > "$preview_root/actual-source-files.txt"
+          if ! diff -u "$preview_root/expected-source-files.txt" "$preview_root/actual-source-files.txt"; then
+            echo "The downloaded release artifact does not have the exact expected file set." >&2
+            exit 1
+          fi
+
+          jq -e --arg version "$version" '
+            type == "object" and
+            .product == "Crosio" and
+            .version == $version and
+            .architectures == ["x64", "ARM64"] and
+            .selfContained == true and
+            .signed == false and
+            .artifactKind == "unsigned-test"
+          ' "$source_dir/build-info.json" > /dev/null
+
+          # The source manifest is written on Windows, so normalize only its
+          # line endings before GNU sha256sum validates the seven hashed payloads.
+          tr -d '\r' < "$source_dir/SHA256SUMS.txt" > "$preview_root/source-SHA256SUMS.txt"
+          if grep -Evq '^[0-9a-f]{64}  [^/\\[:cntrl:]]+$' "$preview_root/source-SHA256SUMS.txt"; then
+            echo "The source checksum manifest has an unexpected format." >&2
+            exit 1
+          fi
+
+          expected_source_hash_names=(
+            "$arm64_name"
+            "$bundle_name"
+            "$x64_name"
+            "$setup_name"
+            "安装一爪.ps1"
+            "TESTING.md"
+            "THIRD_PARTY_NOTICES.md"
+          )
+          printf '%s\n' "${expected_source_hash_names[@]}" | sort > "$preview_root/expected-source-hashes.txt"
+          sed -E 's/^[0-9a-f]{64}  //' "$preview_root/source-SHA256SUMS.txt" | sort > "$preview_root/actual-source-hashes.txt"
+          if ! diff -u "$preview_root/expected-source-hashes.txt" "$preview_root/actual-source-hashes.txt"; then
+            echo "The source checksum manifest does not cover the exact expected payloads." >&2
+            exit 1
+          fi
+          (
+            cd "$source_dir"
+            sha256sum --check --strict "$preview_root/source-SHA256SUMS.txt"
+          )
+
+          # Ordinary users download one standalone GUI installer. The exact
+          # executable below was clicked through on Windows 11 in the prior job.
+          cp -- "$source_dir/$setup_name" "$asset_dir/$setup_name"
+          (
+            cd "$asset_dir"
+            sha256sum "$setup_name" > SHA256SUMS.txt
+            sha256sum --check --strict SHA256SUMS.txt
+          )
+
+          {
+            printf 'PREVIEW_ASSET_DIR=%s\n' "$asset_dir"
+            printf 'PREVIEW_RELEASE_TAG=%s\n' "$release_tag"
+            printf 'PREVIEW_SETUP_NAME=%s\n' "$setup_name"
+          } >> "$GITHUB_ENV"
+
+      - name: Upload a draft, verify cloud assets, then publish the prerelease
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          export LC_ALL=C
+
+          asset_dir="$PREVIEW_ASSET_DIR"
+          release_tag="$PREVIEW_RELEASE_TAG"
+          setup_name="$PREVIEW_SETUP_NAME"
+          notes_file="$GITHUB_WORKSPACE/windows/release/WINDOWS_PREVIEW_NOTES.zh-CN.md"
+          cloud_dir="$(mktemp -d "$RUNNER_TEMP/crosio-preview-cloud.XXXXXX")"
+
+          # --draft ensures an upload or verification failure cannot expose an
+          # empty or partially uploaded release to users.
+          gh release create "$release_tag" \
+            "$asset_dir/$setup_name" \
+            "$asset_dir/SHA256SUMS.txt" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$RELEASE_TARGET_SHA" \
+            --title "一爪 Windows v${RELEASE_VERSION} 预览版" \
+            --notes-file "$notes_file" \
+            --draft \
+            --prerelease \
+            --latest=false
+
+          gh release view "$release_tag" \
+            --repo "$GITHUB_REPOSITORY" \
+            --json assets,isDraft,isPrerelease,tagName,targetCommitish \
+            > "$cloud_dir/draft-release.json"
+          jq -e \
+            --arg tag "$release_tag" \
+            --arg sha "$RELEASE_TARGET_SHA" \
+            --arg setup "$setup_name" '
+              .tagName == $tag and
+              .targetCommitish == $sha and
+              .isDraft == true and
+              .isPrerelease == true and
+              ([.assets[].name] | sort) == (["SHA256SUMS.txt", $setup] | sort) and
+              ([.assets[] | select(.state != "uploaded" or .size <= 0)] | length) == 0
+            ' "$cloud_dir/draft-release.json" > /dev/null
+
+          gh release download "$release_tag" \
+            --repo "$GITHUB_REPOSITORY" \
+            --dir "$cloud_dir/download" \
+            --pattern "$setup_name" \
+            --pattern "SHA256SUMS.txt"
+
+          mapfile -d '' cloud_assets < <(find "$cloud_dir/download" -mindepth 1 -maxdepth 1 -type f -print0)
+          if (( ${#cloud_assets[@]} != 2 )); then
+            echo "Expected exactly two cloud release assets; found ${#cloud_assets[@]}." >&2
+            exit 1
+          fi
+          cmp -- "$asset_dir/$setup_name" "$cloud_dir/download/$setup_name"
+          cmp -- "$asset_dir/SHA256SUMS.txt" "$cloud_dir/download/SHA256SUMS.txt"
+          (
+            cd "$cloud_dir/download"
+            sha256sum --check --strict SHA256SUMS.txt
+          )
+
+          gh release edit "$release_tag" \
+            --repo "$GITHUB_REPOSITORY" \
+            --draft=false \
+            --prerelease \
+            --latest=false
+
+          gh release view "$release_tag" \
+            --repo "$GITHUB_REPOSITORY" \
+            --json assets,isDraft,isPrerelease,tagName,targetCommitish \
+            > "$cloud_dir/published-release.json"
+          jq -e \
+            --arg tag "$release_tag" \
+            --arg sha "$RELEASE_TARGET_SHA" \
+            --arg setup "$setup_name" '
+              .tagName == $tag and
+              .targetCommitish == $sha and
+              .isDraft == false and
+              .isPrerelease == true and
+              ([.assets[].name] | sort) == (["SHA256SUMS.txt", $setup] | sort) and
+              ([.assets[] | select(.state != "uploaded" or .size <= 0)] | length) == 0
+            ' "$cloud_dir/published-release.json" > /dev/null
+
+          # Draft releases may not create the tag until they are published.
+          # Verify the newly visible lightweight tag now points at this run's
+          # exact, already-verified commit.
+          gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$release_tag" \
+            > "$cloud_dir/tag-ref.json"
+          jq -e --arg sha "$RELEASE_TARGET_SHA" \
+            '.object.type == "commit" and .object.sha == $sha' \
+            "$cloud_dir/tag-ref.json" > /dev/null

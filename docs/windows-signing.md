@@ -4,6 +4,8 @@
 
 ## 当前结论
 
+主干合并更新：Windows 现与 macOS 同在 `main`。普通 CI 和预览发布已固定为未签名测试包，不再因配置证书 secrets 而自动导出 PFX；预览公开必须从 `main` 手动明确开启。下列 `7fc5691` 基线中的自动签名配置描述只保留作历史审计，不能视为当前 CI 行为。参见[现行工作流约定](platform-workflow.md)。
+
 GitHub 上的 [Windows 0.1.20.0 预览版](https://github.com/CrossLee/onepaw/releases/tag/windows-v0.1.20.0-preview) 仍未签名。要提供可信安装包，需要先确认合法发布主体和可用签名服务，再补齐应用、包和安装器的完整签名链路；不能仅打开现有 PFX 配置就宣称完成。
 
 截至核验时，`CrossLee/onepaw` 的仓库 Actions secret 名称列表、variable 名称列表及 environment 列表均为空。本次只查询名称/配置，没有读取秘密值。现有本机代码签名身份仅属于 Apple/iPhone 开发或 Developer ID，不能替代 Windows Authenticode 可信签名；没有扫描其它私人目录或声称用户在别处一定没有证书。

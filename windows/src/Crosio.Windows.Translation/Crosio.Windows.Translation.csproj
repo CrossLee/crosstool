@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <RootNamespace>Crosio.Windows.Translation</RootNamespace>
+    <AssemblyName>Crosio.Windows.Translation</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.24.4" GeneratePathProperty="true" />
+    <PackageReference Include="Microsoft.ML.Tokenizers" Version="2.0.0" GeneratePathProperty="true" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="$(PkgMicrosoft_ML_OnnxRuntime)/LICENSE"
+          Link="Licenses/Microsoft.ML.OnnxRuntime-LICENSE.txt"
+          CopyToOutputDirectory="PreserveNewest"
+          CopyToPublishDirectory="PreserveNewest" />
+    <None Include="$(PkgMicrosoft_ML_OnnxRuntime)/ThirdPartyNotices.txt"
+          Link="Licenses/Microsoft.ML.OnnxRuntime-ThirdPartyNotices.txt"
+          CopyToOutputDirectory="PreserveNewest"
+          CopyToPublishDirectory="PreserveNewest" />
+    <None Include="$(PkgMicrosoft_ML_Tokenizers)/LICENSE"
+          Link="Licenses/Microsoft.ML.Tokenizers-LICENSE.txt"
+          CopyToOutputDirectory="PreserveNewest"
+          CopyToPublishDirectory="PreserveNewest" />
+    <None Include="$(PkgMicrosoft_ML_Tokenizers)/THIRD-PARTY-NOTICES.TXT"
+          Link="Licenses/Microsoft.ML.Tokenizers-ThirdPartyNotices.txt"
+          CopyToOutputDirectory="PreserveNewest"
+          CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Crosio.Windows.Intelligence/Crosio.Windows.Intelligence.csproj" />
+  </ItemGroup>
+</Project>

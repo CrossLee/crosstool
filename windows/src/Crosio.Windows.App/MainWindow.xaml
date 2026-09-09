@@ -1,0 +1,289 @@
+<Window
+    x:Class="Crosio.Windows.App.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <NavigationView
+        x:Name="Navigation"
+        IsBackButtonVisible="Collapsed"
+        IsSettingsVisible="False"
+        PaneDisplayMode="Left"
+        SelectionChanged="Navigation_SelectionChanged">
+
+        <NavigationView.MenuItems>
+            <NavigationViewItem Content="首页" Tag="home" />
+            <NavigationViewItemHeader Content="截图" />
+            <NavigationViewItem Content="区域截图" Tag="capture-region" />
+            <NavigationViewItem Content="窗口截图" Tag="capture-window" />
+            <NavigationViewItem Content="全屏截图" Tag="capture-screen" />
+            <NavigationViewItem Content="延时截图" Tag="capture-delay" />
+            <NavigationViewItem Content="带壳截图" Tag="capture-frame" />
+            <NavigationViewItem Content="多窗口截图" Tag="capture-multi-window" />
+            <NavigationViewItem Content="长截图" Tag="capture-scroll" />
+            <NavigationViewItemHeader Content="工具" />
+            <NavigationViewItem Content="录制屏幕" Tag="record-screen" />
+            <NavigationViewItem Content="录制区域" Tag="record-region" />
+            <NavigationViewItem Content="录制窗口" Tag="record-window" />
+            <NavigationViewItem Content="提取颜色" Tag="color-picker" />
+            <NavigationViewItem Content="文本翻译" Tag="translate" />
+            <NavigationViewItem Content="图片压缩" Tag="compress-images" />
+            <NavigationViewItemHeader Content="课堂共享" />
+            <NavigationViewItem Content="分享文件" Tag="share-files" />
+            <NavigationViewItem Content="分享文字" Tag="share-text" />
+        </NavigationView.MenuItems>
+
+        <NavigationView.FooterMenuItems>
+            <NavigationViewItem Content="设置" Tag="settings" />
+        </NavigationView.FooterMenuItems>
+
+        <ScrollViewer>
+            <StackPanel
+                MaxWidth="820"
+                Padding="36,30,36,48"
+                Spacing="18"
+                HorizontalAlignment="Stretch">
+
+                <TextBlock
+                    x:Name="GreetingText"
+                    FontSize="13"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+
+                <TextBlock
+                    FontSize="26"
+                    FontWeight="SemiBold"
+                    Text="{x:Bind ViewModel.Description, Mode=OneWay}"
+                    TextWrapping="Wrap" />
+
+                <InfoBar
+                    x:Name="StatusBar"
+                    IsOpen="False"
+                    IsClosable="True"
+                    Title="一爪"
+                    Message="{x:Bind ViewModel.Status, Mode=OneWay}" />
+
+                <Button
+                    x:Name="PrimaryActionButton"
+                    HorizontalAlignment="Left"
+                    Click="PrimaryAction_Click"
+                    Style="{StaticResource AccentButtonStyle}" />
+
+                <StackPanel x:Name="RecordingPanel" Spacing="12" Visibility="Collapsed">
+                    <TextBlock
+                        Text="录制为本机 MP4；默认包含系统声音和鼠标指针。再次按相同快捷键可停止并保存。"
+                        TextWrapping="Wrap" />
+                    <ToggleSwitch
+                        x:Name="RecordingSystemAudioToggle"
+                        Header="录制系统声音"
+                        IsOn="True"
+                        OffContent="已关闭"
+                        OnContent="已开启" />
+                    <ToggleSwitch
+                        x:Name="RecordingCursorToggle"
+                        Header="显示鼠标指针"
+                        IsOn="True"
+                        OffContent="已隐藏"
+                        OnContent="已显示" />
+                    <TextBlock
+                        x:Name="RecordingStatusText"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        TextWrapping="Wrap" />
+                    <Button
+                        Content="打开录屏目录"
+                        HorizontalAlignment="Left"
+                        Click="OpenRecordingsFolder_Click" />
+                    <TextBlock
+                        x:Name="RecentRecordingText"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        TextWrapping="Wrap" />
+                    <StackPanel
+                        x:Name="RecordingRecentActions"
+                        Orientation="Horizontal"
+                        Spacing="8"
+                        Visibility="Collapsed">
+                        <Button Content="播放" Click="PlayRecentRecording_Click" />
+                        <Button Content="在资源管理器中显示" Click="RevealRecentRecording_Click" />
+                        <Button
+                            x:Name="AddRecordingToSharingButton"
+                            Content="加入共享区"
+                            Click="AddRecordingToSharing_Click" />
+                    </StackPanel>
+                    <TextBlock
+                        Text="Windows N/KN 版本需先在系统中安装 Media Feature Pack。"
+                        FontSize="12"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        TextWrapping="Wrap" />
+                </StackPanel>
+
+                <StackPanel x:Name="TranslationPanel" Spacing="12" Visibility="Collapsed">
+                    <TextBlock Text="原文" FontWeight="SemiBold" />
+                    <TextBox
+                        x:Name="TranslationInputBox"
+                        MinHeight="120"
+                        AcceptsReturn="True"
+                        TextChanged="TranslationInputBox_TextChanged"
+                        TextWrapping="Wrap"
+                        PlaceholderText="选中文字后使用快捷键，或在这里输入中文或英文" />
+                    <TextBlock
+                        x:Name="TranslationDirectionLabel"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button
+                            x:Name="DownloadTranslationModelsButton"
+                            Content="下载官方中英双向模型"
+                            Click="DownloadOfficialTranslationModels_Click"
+                            Style="{StaticResource AccentButtonStyle}" />
+                        <Button
+                            x:Name="CancelTranslationModelDownloadButton"
+                            Content="取消下载"
+                            Click="CancelTranslationModelDownload_Click"
+                            Visibility="Collapsed" />
+                    </StackPanel>
+                    <ProgressBar
+                        x:Name="TranslationModelProgress"
+                        Minimum="0"
+                        Maximum="100"
+                        Visibility="Collapsed" />
+                    <TextBlock
+                        x:Name="TranslationDownloadStatus"
+                        Text="模型首次下载需要联网；安装后翻译全程在本机完成。许可：中译英 CC BY 4.0，英译中 Apache 2.0。"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        TextWrapping="Wrap" />
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button
+                            x:Name="InstallLocalTranslationModelButton"
+                            Content="安装本地离线模型包"
+                            Click="InstallTranslationModel_Click" />
+                        <TextBlock
+                            x:Name="TranslationModelStatus"
+                            VerticalAlignment="Center"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    </StackPanel>
+                    <Button
+                        x:Name="TranslateButton"
+                        Content="翻译"
+                        HorizontalAlignment="Left"
+                        Click="Translate_Click"
+                        Style="{StaticResource AccentButtonStyle}" />
+                    <TextBlock Text="译文" FontWeight="SemiBold" />
+                    <TextBox
+                        x:Name="TranslationOutputBox"
+                        MinHeight="120"
+                        AcceptsReturn="True"
+                        IsReadOnly="True"
+                        TextWrapping="Wrap"
+                        PlaceholderText="本机翻译结果会显示在这里" />
+                    <Button
+                        x:Name="CopyTranslationButton"
+                        Content="复制译文"
+                        HorizontalAlignment="Left"
+                        IsEnabled="False"
+                        Click="CopyTranslation_Click" />
+                </StackPanel>
+
+                <StackPanel x:Name="CompressionPanel" Spacing="12" Visibility="Collapsed">
+                    <TextBlock Text="保持图片真实格式和原后缀，不覆盖原文件；压缩完成后自动在资源管理器定位。" TextWrapping="Wrap" />
+                    <Button
+                        Content="选择图片并压缩"
+                        HorizontalAlignment="Left"
+                        Click="ChooseImagesToCompress_Click"
+                        Style="{StaticResource AccentButtonStyle}" />
+                </StackPanel>
+
+                <StackPanel x:Name="SharingPanel" Spacing="12" Visibility="Collapsed">
+                    <TextBlock Text="同一局域网内可用浏览器收发文件和文字；只有当前一爪可以停止共享。" TextWrapping="Wrap" />
+                    <TextBox
+                        x:Name="SharedTextInput"
+                        AcceptsReturn="True"
+                        MinHeight="88"
+                        TextWrapping="Wrap"
+                        PlaceholderText="输入要分享的文字或链接" />
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Content="加入文字" Click="AddSharedText_Click" />
+                        <Button Content="加入文件" Click="AddSharedFiles_Click" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Content="开始共享" Click="StartSharing_Click" />
+                        <Button Content="复制链接" Click="CopySharingLink_Click" />
+                        <Button Content="停止共享" Click="StopSharing_Click" />
+                    </StackPanel>
+                    <TextBlock
+                        x:Name="SharingSummary"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        TextWrapping="Wrap" />
+                </StackPanel>
+
+                <StackPanel x:Name="SettingsPanel" Spacing="14" Visibility="Collapsed">
+                    <ToggleSwitch
+                        x:Name="StartWithWindowsToggle"
+                        Header="登录 Windows 时启动一爪"
+                        OffContent="已关闭"
+                        OnContent="已开启"
+                        Toggled="StartWithWindowsToggle_Toggled" />
+                    <TextBlock
+                        x:Name="StartupStatusText"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        TextWrapping="Wrap" />
+                    <TextBlock Text="全局快捷键" FontWeight="SemiBold" />
+                    <TextBlock
+                        Text="点击快捷键框后直接按组合键。组合键必须包含 Ctrl；区域、窗口、全屏截图为必填，其他功能按 Delete 可清除。只有点击“应用更改”后才会注册并保存。"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        TextWrapping="Wrap" />
+                    <ListView
+                        x:Name="HotkeyList"
+                        HorizontalContentAlignment="Stretch"
+                        IsItemClickEnabled="False"
+                        SelectionMode="None">
+                        <ListView.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Padding="0,7" Spacing="5">
+                                    <Grid ColumnSpacing="16">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="210" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel VerticalAlignment="Center" Spacing="2">
+                                            <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                                            <TextBlock
+                                                Text="{Binding Group}"
+                                                FontSize="12"
+                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                        </StackPanel>
+                                        <TextBox
+                                            Grid.Column="1"
+                                            HorizontalContentAlignment="Center"
+                                            IsReadOnly="True"
+                                            KeyDown="ShortcutEditor_KeyDown"
+                                            GotFocus="ShortcutEditor_GotFocus"
+                                            LostFocus="ShortcutEditor_LostFocus"
+                                            Tag="{Binding Route}"
+                                            Text="{Binding DisplayText, Mode=OneWay}" />
+                                    </Grid>
+                                    <TextBlock
+                                        Text="{Binding Feedback, Mode=OneWay}"
+                                        FontSize="12"
+                                        Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                                        TextWrapping="Wrap" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                    <TextBlock
+                        x:Name="ShortcutStatusText"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        TextWrapping="Wrap" />
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button
+                            x:Name="RestoreDefaultHotkeysButton"
+                            Content="恢复默认"
+                            Click="RestoreDefaultHotkeys_Click" />
+                        <Button
+                            x:Name="ApplyHotkeysButton"
+                            Content="应用更改"
+                            Click="ApplyHotkeys_Click"
+                            Style="{StaticResource AccentButtonStyle}" />
+                    </StackPanel>
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+    </NavigationView>
+</Window>

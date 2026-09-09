@@ -51,7 +51,7 @@ GitHub 的 “Source code” 是源码，不是安装包。
 
 此外还提供自定义全局快捷键、登录时启动，以及文件/文件夹的右键复制路径。Mac 的复制路径位于 Finder“服务”菜单，后台完成，不弹主界面。
 
-以上为产品主要能力。Windows 正在持续完善，安装、启动和自动测试通过不代表全部功能已完成实机验收，也不代表已与 Mac 完全一致。[Windows 功能与验证范围](https://github.com/CrossLee/onepaw/blob/codex/windows-native-preview/windows/README.md)
+以上为产品主要能力。Windows 正在持续完善，安装、启动和自动测试通过不代表全部功能已完成实机验收，也不代表已与 Mac 完全一致。[Windows 功能与验证范围](windows/README.md)
 
 ### 颜色，随手就能带走
 
@@ -129,11 +129,13 @@ CROSSTOOL_NOTARY_PROFILE=<profile> ./scripts/build-release.sh
 <details>
 <summary><strong>Windows · .NET / WinUI 3</strong></summary>
 
-Windows 源码和发布流水线目前位于 [`codex/windows-native-preview` 分支](https://github.com/CrossLee/onepaw/tree/codex/windows-native-preview)，不在默认 `main` 分支的目录中。
+macOS 与 Windows 现统一在 `main` 维护。Windows 原生代码、测试和安装器位于 [`windows/`](windows/)，macOS 保留现有 Swift 工程结构；两端独立构建、独立发布。
 
-请按 [Windows 构建文档](https://github.com/CrossLee/onepaw/blob/codex/windows-native-preview/windows/README.md) 准备开发环境。可信发布的身份、证书、安装器签名与旧预览迁移要求见 [Windows 签名说明](docs/windows-signing.md)。
+请按 [Windows 构建文档](windows/README.md) 准备开发环境。可信发布的身份、证书、安装器签名与旧预览迁移要求见 [Windows 签名说明](docs/windows-signing.md)。
 
 </details>
+
+代码合并和日常推送只触发验证，不会自动发布安装包。两端共用品牌与浏览器页面资源；修改公共网页时会同时触发 Mac 和 Windows 检查。详见[仓库结构与发布约定](docs/platform-workflow.md)。
 
 ## 下载校验与反馈
 
