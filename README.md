@@ -1,110 +1,140 @@
-# Crosio
+<p align="center">
+  <img src="docs/assets/onepaw-brand.png" alt="一爪 OnePaw · 电脑小事，一爪搞定" width="820">
+</p>
 
-Crosio 是一款本地优先的原生 macOS 工具箱，集截图与标注、图片压缩、屏幕录制、屏幕取色、本机翻译和课堂局域网共享于一体。无需账号或云端服务；学生无需安装 App，使用浏览器即可参与文件和文字互传。
+<p align="center">
+  截图、OCR、图片压缩、录屏、取色、翻译与局域网分享。<br>
+  一个本地优先、不需要注册账号的桌面工具箱。
+</p>
+
+<p align="center">
+  <a href="#下载">下载安装</a> ·
+  <a href="#截图之后接着把事做完">界面预览</a> ·
+  <a href="#常用工具一处就够">主要功能</a> ·
+  <a href="https://github.com/CrossLee/onepaw/releases">更新记录</a> ·
+  <a href="https://github.com/CrossLee/onepaw/issues">问题反馈</a>
+</p>
 
 ## 下载
 
-- [DMG 安装包（推荐）](https://github.com/CrossLee/crosstool/releases/download/v0.6.5/Crosio-0.6.5-macos-universal2.dmg)
-- [PKG 安装包](https://github.com/CrossLee/crosstool/releases/download/v0.6.5/Crosio-0.6.5-macos-universal2.pkg)
-- [ZIP 备用包](https://github.com/CrossLee/crosstool/releases/download/v0.6.5/Crosio-0.6.5-macos-universal2.zip)
-- [v0.6.5 发布说明与 SHA-256 校验](https://github.com/CrossLee/crosstool/releases/tag/v0.6.5)
+| 平台 | 最新版本 | 安装包 | 发布状态 |
+| :--- | :--- | :--- | :--- |
+| macOS 14+ · Apple Silicon / Intel | [0.6.5](https://github.com/CrossLee/onepaw/releases/tag/v0.6.5) | **[下载 DMG](https://github.com/CrossLee/onepaw/releases/download/v0.6.5/Crosio-0.6.5-macos-universal2.dmg)** | Developer ID 签名 · Apple 公证 |
+| Windows 11 · x64 / ARM64 | [0.1.20.0](https://github.com/CrossLee/onepaw/releases/tag/windows-v0.1.20.0-preview) | **[下载 EXE](https://github.com/CrossLee/onepaw/releases/download/windows-v0.1.20.0-preview/Crosio-Windows-0.1.20.0-Setup.exe)** | 预览版 · 尚未签名 |
 
-> 只想安装 Crosio 时，请下载文件名以 `Crosio-` 开头的 DMG、PKG 或 ZIP。GitHub 自动生成的“Source code”压缩包不是可直接运行的安装包。
+Mac 备用安装方式：[PKG](https://github.com/CrossLee/onepaw/releases/download/v0.6.5/Crosio-0.6.5-macos-universal2.pkg) · [ZIP](https://github.com/CrossLee/onepaw/releases/download/v0.6.5/Crosio-0.6.5-macos-universal2.zip)。版本信息更新于 **2026-09-09**。
 
-## 系统要求
+Windows 安装器可直接双击，自动选择架构，不需要操作 PowerShell。当前仍是未签名预览版，可能出现“未知发布者”提示，部分设备策略会阻止安装；不要关闭安全保护来绕过限制。[签名进度与说明](docs/windows-signing.md)
 
-- macOS 14 或更高版本
-- Universal 2：同时支持 Apple Silicon 和 Intel Mac，无需 Rosetta
-- 本机文本翻译需要 macOS 15 或更高版本；macOS 14 可继续使用其他功能
+一爪 OnePaw 是新的品牌名称。当前已发布应用、窗口与安装文件仍使用 **Crosio**，猫咪伸爪图标已更新；既有安装身份和数据目录继续保留。GitHub 的 “Source code” 是源码，不是安装包。
 
-## 主要功能
+## 截图之后，接着把事做完
 
-- 区域、窗口、全屏、5 秒延时、带壳、多窗口和长截图
-- 截图完成后立即复制原图，再进入标注编辑器；关闭编辑器后不再自动弹回主窗口
-- 截图编辑器自动使用 Mac 本机 Vision 识别中英文，长截图分段识别，按需复制文字
-- 画笔、马赛克、矩形、箭头、撤销、重做、复制、另存和明确加入课堂共享区
-- 将截图创建为独立置顶小贴图，支持快捷键、拖动和鼠标滚轮或触控板缩放
-- 在 Mac 本地批量压缩图片，可设置目标大小、最长边和 JPEG、HEIC、PNG 输出；Finder 右键“打开方式 → Crosio”压缩 PNG、JPEG/JFIF、HEIC、TIFF 时会保持格式和原后缀，并在完成后定位结果；原图不会被覆盖
-- 录制当前屏幕、窗口或框选区域，可选系统音频和鼠标光标
-- 实时屏幕取色，提供 HEX、RGB、HSL 和最近颜色
-- macOS 15 本机双栏翻译，以及“选中文字 → 快捷键 → 自动中英互译”
-- 自定义全局快捷键
-- 可在设置中开启或关闭“登录时自动启动 Crosio”
-- 课堂局域网公共共享盘：浏览器查看、下载、上传文件和发送文字
-- 菜单栏常驻，运行时不占用 Dock 或 `Command+Tab`；需要时可从菜单栏重新打开主窗口
+选区域、选窗口，或截一张长图。截图完成就自动复制原图；需要时继续标注、识别文字，或钉在屏幕上边看边操作。
 
-## 一爪 OnePaw 新图标
+<p align="center">
+  <img src="docs/assets/macos-capture.jpg" alt="macOS 实际截图工具页，包含区域、窗口、全屏、延时、带壳、多窗口和长截图入口" width="1040">
+</p>
 
-v0.6.5 使用已确认的「猫咪伸爪」拟物图标：柔软毛发、粉色肉垫和橙色立体边框。品牌口号为“电脑小事，一爪搞定”。本次仅更换产品图标，安装实体仍为 `Crosio.app`；保留现有权限标识、快捷键、数据路径和升级兼容性。
+<p align="center"><sub>真实 macOS 界面，非设计效果图。采集自本机 0.6.4（45），保留实际名称 Crosio；快捷键以你的设置为准。最新 0.6.5 已使用同系列猫咪图标。</sub></p>
 
-## Finder 复制路径
+## 常用工具，一处就够
 
-选中文件或文件夹，右键选择“服务 → 复制路径”。支持多选，按 Finder 提供的顺序每行复制一个完整路径；保留中文、空格等原始字符，不转换成 URL 或命令行转义格式。该操作在后台完成，不打开 Crosio 主界面；全程本地，不读取、修改或上传文件内容，也不触发图片压缩。
+- **截图、标注、识字** — 画笔、箭头、矩形、马赛克；Mac 使用本机 Vision 自动 OCR。在截图编辑器中按 `S` 把当前截图变成置顶小贴图，滚轮缩放，`Esc` 关闭。
+- **图片压缩** — 本地批量处理，兼顾清晰度与体积，不覆盖原图。Mac 的 Finder“打开方式 → Crosio”可自动压缩 PNG、JPEG/JFIF、HEIC、TIFF，保持原格式和后缀，完成后定位结果。
+- **屏幕录制** — 录屏幕、窗口或指定区域，按需保留系统声音和鼠标指针。Mac 当前不采集麦克风，成片默认只保存在本机。
+- **屏幕取色** — 提取标准 sRGB 颜色，复制 HEX、RGB 或 HSL，保存最近使用的颜色。
+- **本机翻译** — 双栏翻译，也可为选中文字设置快捷中英互译。Mac 需要 macOS 15+；两平台首次准备语言模型可能需要联网。
+- **局域网分享** — 分享文件、图片、文字和链接。其他人用浏览器即可查看、下载、上传，不需要安装客户端；你随时可以停止共享。
 
-v0.6.5 已包含此功能。安装并打开一次后，macOS 才能注册该服务；若入口未显示，可在系统的键盘快捷键“服务”设置中检查“复制路径”是否启用。它位于“服务”子菜单，不是“打开方式”。
+此外还提供自定义全局快捷键、登录时启动，以及文件/文件夹的右键复制路径。Mac 的复制路径位于 Finder“服务”菜单，后台完成，不弹主界面。
 
-## 安装
+以上为产品主要能力。Windows 正在持续完善，安装、启动和自动测试通过不代表全部功能已完成实机验收，也不代表已与 Mac 完全一致。[Windows 功能与验证范围](https://github.com/CrossLee/onepaw/blob/codex/windows-native-preview/windows/README.md)
 
-安装或升级前，请先退出正在运行的 Crosio。
+### 颜色，随手就能带走
 
-### DMG（推荐）
+<p align="center">
+  <img src="docs/assets/macos-color-picker.jpg" alt="macOS 实际取色页面，显示 HEX、RGB、HSL 与最近颜色" width="1040" loading="lazy">
+</p>
 
-双击打开 DMG，将 `Crosio.app` 拖入“应用程序”，然后从 `/Applications/Crosio.app` 启动。
+<p align="center"><sub>同一 macOS 安装版实拍。图片未重绘，未替换界面文字。</sub></p>
 
-### PKG
+## 安装与第一次使用
 
-适合学校或企业集中部署，也适合仍安装着 v0.1.x `/Applications/crosstool.app` 的用户。安装器会在核验旧 App 身份后安全迁移。
+<details>
+<summary><strong>macOS · 拖入应用程序即可</strong></summary>
 
-### ZIP
+1. 升级前先退出正在运行的 Crosio。打开 DMG，将 `Crosio.app` 拖入“应用程序”。
+2. 从“应用程序”启动；它常驻菜单栏，不在 Dock 或 `Command+Tab` 中常驻。需要主界面时从菜单栏打开。
+3. 首次截图、录屏按提示授予屏幕录制权限；快捷翻译读取其他 App 选中文字时才需要辅助功能权限。
 
-解压后手动将 `Crosio.app` 放入“应用程序”。ZIP 不执行 v0.1.x 旧实体迁移。
+Universal 2 同时支持 Apple Silicon 与 Intel，无需 Rosetta。macOS 14 可用除本机翻译以外的其他功能；本机翻译需要 macOS 15+。
 
-## 权限与隐私
+PKG 也可用于集中部署及旧 v0.1.x 实体迁移；ZIP 解压后手动放入“应用程序”，不执行旧实体迁移。安装并打开一次后，系统才会注册 Finder 服务；若“复制路径”未显示，可检查系统键盘快捷键中的“服务”。
 
-- 截图、录屏和 ScreenCaptureKit 实时取色需要“屏幕与系统音频录制”权限；取色在无权限或实时流失败时会回退系统取色器。
-- 只有读取其他 App 当前选中文字的快捷翻译需要“辅助功能”权限；普通翻译、快捷键录入和注册不需要该权限。
-- 课堂共享需要本地网络访问，首次使用时 macOS 防火墙或本地网络权限可能弹出确认。
-- macOS 15 的翻译使用 Apple Translation 本机能力，不接入 Crosio 云端翻译服务。
-- 当前录屏不采集麦克风。
-- 截图、录屏和翻译历史默认保存在本机；截图不会因为自动复制而自动公开。
-- 截图 OCR 完全在 Mac 本机处理，不上传图片；识别结果仅在点击“复制文字”后写入剪贴板。
-- 图片压缩完全在 Mac 本机处理，不上传图片；只有结果确实小于原图时才会保存新文件。
-- 浏览器上传内容会进入当前公共列表，并保存在本机接收箱。持有当前分享链接的人可以查看、下载和上传，请只分享给可信参与者。
-- 停止共享会立即停止本地 HTTP 服务。
+</details>
 
-## 本地数据
+<details>
+<summary><strong>Windows · 双击中文安装程序</strong></summary>
 
-Crosio 数据保存在：
+1. 使用自己的、具有管理员权限的 Windows 账户；升级前先退出旧版。
+2. 双击 `Crosio-Windows-0.1.20.0-Setup.exe`，确认系统管理员授权，按向导点击“安装”“完成”。
+3. 从开始菜单打开 Crosio，或在安装完成页选择立即打开。
 
-```text
-~/Library/Application Support/crosstool
-```
+需要 Windows 11 build 22000 或更高版本，支持 x64 / ARM64，安装包包含运行所需组件。安装本身无需联网；首次下载翻译模型需要联网。
 
-其中包含接收箱、截图、录屏及其受管草稿。当前单文件上传上限为 256 MB。
+当前包尚未签名。如果设备策略阻止运行，请联系管理员，不要关闭安全功能。预览版转正式签名版将涉及包身份与数据迁移，正式迁移方案尚未发布，请先保留旧安装与数据。
+
+</details>
+
+## 本地优先，边界清楚
+
+- **内容留在本机。** 截图 OCR、图片压缩和翻译处理不上传到 OnePaw 自建云服务。首次语言模型下载与内容处理是两回事。
+- **分享由你决定。** 自动复制截图、OCR 识字、录屏和翻译不会把内容自动加入共享区。
+- **面向局域网分享。** 不内置公网穿透或云端中继，请勿将服务端口映射到公网。能访问服务且持有当前分享链接的人可以查看、下载和上传，请只发给可信参与者。停止共享会停止本地 HTTP 服务。
+- **保留原文件。** 压缩只在结果确实更小时保存新文件，不承诺所有图片都能达到指定体积，也不把有损压缩称为无损。
+
+Mac 兼容数据目录为 `~/Library/Application Support/crosstool`。浏览器上传单文件上限为 256 MB；本地网络、屏幕录制和辅助功能权限均按使用场景申请。
 
 ## 从源码构建
 
-需要 Swift 6.1 / Xcode 16.3 或更高版本：
+<details>
+<summary><strong>macOS · Swift / SwiftUI</strong></summary>
+
+需要 Swift 6.1 / Xcode 16.3 或更高版本，在 Mac 上运行：
 
 ```bash
+git clone https://github.com/CrossLee/onepaw.git
+cd onepaw
 swift test
 ./scripts/build-app.sh
 ```
 
-开发 App 输出到 `dist/development/Crosio.app`。
+开发 App 输出到 `dist/development/Crosio.app`。开发脚本优先使用 Apple Development 证书，没有证书时使用 ad-hoc 签名；这不等于正式发行签名。
 
-开发脚本会优先使用钥匙串中的 Apple Development 证书；没有开发证书时会自动使用 ad-hoc 签名。需要指定稳定身份时，可设置 `CROSSTOOL_CODESIGN_IDENTITY`。
-
-正式签名、公证与安装介质构建需要 Developer ID 证书及已配置的 `notarytool` 钥匙串 profile：
+正式 DMG、PKG、ZIP 需要 Developer ID 证书及 `notarytool` 钥匙串 profile：
 
 ```bash
 CROSSTOOL_NOTARY_PROFILE=<profile> ./scripts/build-release.sh
 ```
 
-## 校验下载
+安装身份 `com.cross.crosstool`、PKG receipt 与既有数据路径均为兼容标识，不随仓库改名变更。
 
-将安装包与 `SHA256SUMS.txt` 放在同一目录后执行：
+</details>
 
-```bash
-shasum -a 256 -c SHA256SUMS.txt
-```
+<details>
+<summary><strong>Windows · .NET / WinUI 3</strong></summary>
+
+Windows 源码和发布流水线目前位于 [`codex/windows-native-preview` 分支](https://github.com/CrossLee/onepaw/tree/codex/windows-native-preview)，不在默认 `main` 分支的目录中。
+
+请按 [Windows 构建文档](https://github.com/CrossLee/onepaw/blob/codex/windows-native-preview/windows/README.md) 准备开发环境。可信发布的身份、证书、安装器签名与旧预览迁移要求见 [Windows 签名说明](docs/windows-signing.md)。
+
+</details>
+
+## 下载校验与反馈
+
+每个发布页都附有 `SHA256SUMS.txt`。Mac 安装包可在同目录运行 `shasum -a 256 -c SHA256SUMS.txt`；Windows 可在开发者工具中计算 SHA-256 后比对。普通用户不需要执行命令才能安装。
+
+遇到问题，欢迎在 [Issues](https://github.com/CrossLee/onepaw/issues) 留下系统版本、处理器架构、App 版本与复现步骤。截图前请遮住私人内容，不要提交分享令牌、证书私钥或密码。
+
+<p align="center"><sub>一爪 OnePaw · 电脑小事，一爪搞定</sub></p>
