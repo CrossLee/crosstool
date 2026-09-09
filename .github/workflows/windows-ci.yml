@@ -94,7 +94,7 @@ jobs:
 
       - name: Verify Windows workflow safety policy
         shell: pwsh
-        run: node .\scripts\test-windows-workflow.mjs
+        run: node --test .\scripts\test-windows-workflow.mjs .\scripts\test-windows-workflow-inputs.test.mjs
 
       - name: Install .NET 8
         uses: actions/setup-dotnet@v4

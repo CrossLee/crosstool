@@ -35,9 +35,10 @@ jobs:
     runs-on: macos-15
     timeout-minutes: 30
     env:
-      # The macOS 15 runner includes Xcode 16.4 / Swift 6.1 and the 15.5 SDK.
+      # Xcode 26.3 on this runner supplies the macOS 26.2 SDK required to compile
+      # the existing TranslationError APIs. Package.swift still targets macOS 14.
       # https://github.com/actions/runner-images/blob/main/images/macos/macos-15-Readme.md
-      DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
       CROSSTOOL_CODESIGN_IDENTITY: '-'
     steps:
       - uses: actions/checkout@v4

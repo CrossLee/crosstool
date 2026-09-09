@@ -105,7 +105,7 @@ Mac 兼容数据目录为 `~/Library/Application Support/crosstool`。浏览器�
 <details>
 <summary><strong>macOS · Swift / SwiftUI</strong></summary>
 
-需要 Swift 6.1 / Xcode 16.3 或更高版本，在 Mac 上运行：
+需要 Xcode 26 或更高版本（包含 macOS 26 SDK）。这是源码构建要求，应用运行最低系统仍为 macOS 14。在 Mac 上运行：
 
 ```bash
 git clone https://github.com/CrossLee/onepaw.git

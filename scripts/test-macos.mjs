@@ -125,7 +125,7 @@ export async function runCommand(command, args, { cwd, timeoutMs, logPath, echo 
 
 export async function main() {
   if (process.argv.length > 2) throw new Error('Usage: scripts/test-macos.sh (no filters: always verifies the complete discovered suite)');
-  if (process.platform !== 'darwin') throw new Error('The macOS product tests require macOS with Xcode / Swift 6.1 or later.');
+  if (process.platform !== 'darwin') throw new Error('The macOS product tests require macOS with Xcode 26 or later (macOS 26 SDK); the app deployment target remains macOS 14.');
   await mkdir(path.join(projectDir, '.build'), { recursive: true });
   const logDir = await mkdtemp(path.join(projectDir, '.build', 'macos-regression-'));
   const report = { startedAt: new Date().toISOString(), status: 'running', discoveredTests: 0, passedTests: 0, groups: [] };

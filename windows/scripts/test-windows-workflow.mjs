@@ -6,8 +6,14 @@ import { runInNewContext } from 'node:vm';
 // Deliberately dependency-free contract checks, not a replacement for YAML or
 // GitHub Actions syntax validation. Read the real workflow rather than copying
 // its publication predicate or package-version implementation into fixtures.
-const workflow = readFileSync(new URL('../../.github/workflows/windows-ci.yml', import.meta.url), 'utf8');
-const lines = workflow.split(/\r?\n/);
+const args = process.argv.slice(2);
+assert.ok(args.length === 0 || (args.length === 2 && args[0] === '--workflow-file'),
+  'Usage: node test-windows-workflow.mjs [--workflow-file <fixture>]');
+const workflowPath = args.length === 2 ? args[1] : new URL('../../.github/workflows/windows-ci.yml', import.meta.url);
+// Git checks this file out with CRLF on Windows. Normalize once so every
+// full-file assertion and every extracted block checks the same logical text.
+const workflow = readFileSync(workflowPath, 'utf8').replace(/\r\n?/g, '\n');
+const lines = workflow.split('\n');
 
 function blockAfter(header, indentation) {
   const start = lines.indexOf(`${' '.repeat(indentation)}${header}`);
@@ -174,5 +180,6 @@ test('the actual package-version implementation accepts bounds and fails closed 
 });
 
 test('workflow safety checks are part of every Windows verification run', () => {
-  assert.ok(step('Verify Windows workflow safety policy').includes('node .\\scripts\\test-windows-workflow.mjs'));
+  assert.ok(step('Verify Windows workflow safety policy')
+    .includes('node --test .\\scripts\\test-windows-workflow.mjs .\\scripts\\test-windows-workflow-inputs.test.mjs'));
 });
