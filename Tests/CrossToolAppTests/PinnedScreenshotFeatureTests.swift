@@ -836,6 +836,7 @@ struct PinnedScreenshotFeatureTests {
 
     @Test("Escape callback closes only the selected pin and immediately releases its budget")
     func escapeCallbackClosesOnlyTargetPinAndReleasesManagerBudget() throws {
+        let app = NSApplication.shared
         let screen = try #require(NSScreen.main ?? NSScreen.screens.first)
         let image = try makeImage(width: 200, height: 100)
         let perImageCost = try PinnedScreenshotSnapshot(image: image).byteCost
@@ -843,7 +844,7 @@ struct PinnedScreenshotFeatureTests {
             memoryBudgetBytes: perImageCost * 2
         )
         let preexistingPanels = Set(
-            NSApp.windows
+            app.windows
                 .compactMap { $0 as? PinnedScreenshotPanel }
                 .map(ObjectIdentifier.init)
         )
@@ -859,7 +860,7 @@ struct PinnedScreenshotFeatureTests {
             selectForKeyboard: false
         )
         let firstPanel = try #require(
-            NSApp.windows.compactMap { $0 as? PinnedScreenshotPanel }.first {
+            app.windows.compactMap { $0 as? PinnedScreenshotPanel }.first {
                 !preexistingPanels.contains(ObjectIdentifier($0))
             }
         )
@@ -872,7 +873,7 @@ struct PinnedScreenshotFeatureTests {
             selectForKeyboard: false
         )
         let secondPanel = try #require(
-            NSApp.windows.compactMap { $0 as? PinnedScreenshotPanel }.first {
+            app.windows.compactMap { $0 as? PinnedScreenshotPanel }.first {
                 !panelsAfterFirst.contains(ObjectIdentifier($0))
             }
         )
